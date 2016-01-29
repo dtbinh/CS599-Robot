@@ -1,0 +1,100 @@
+
+# Desc: Stage demo with lots of models. Works with everything.cfg.
+# CVS: $Id: everything.world,v 1.87 2008-02-12 02:53:53 rtv Exp $
+
+# the size of a pixel in Stage's underlying raytrace model in meters
+resolution     0.02
+
+include "pioneer.inc"
+include "map.inc"
+include "sick.inc"
+
+window
+( 
+  size [ 640.000 680.000 ] 
+  center [0.000 0.000] 
+  scale 36.995 # pixels per meter
+
+  show_data 0
+)
+
+floorplan
+( 
+  bitmap "bitmaps/cave.png" 
+  map_resolution 0.02
+  size [16.000 16.000 0.800] 
+  name "cave"
+  color "gray50"
+  gui_grid 1
+  gui_outline 1
+)
+
+
+# extend the pioneer2dx definition from pioneer.inc
+#
+define myrobot pioneer2dx_base_no_sonar
+(
+  sicklaser( pose [0.030 0 0 0 ]  alwayson 1 )
+
+  ranger_return 1
+
+  # simplified Body shape:
+  block( 
+    points 8
+    point[0] [-0.2 0.12]
+    point[1] [-0.2 -0.12]
+    point[2] [-0.12 -0.2555 ]
+
+    point[3] [0.12 -0.2555]
+    point[4] [0.2 -0.12]
+    point[5] [0.2 0.12]
+    point[6] [0.12 0.2555]
+    point[7] [-0.12 0.2555]
+    z [0 0.22]
+  )
+)
+
+
+myrobot
+(
+  color "red"
+  name "r1"
+  pose [6.41 3.91 0 165.780]
+#  pose [0 0 0 0]
+)
+
+myrobot
+(
+  color "NavyBlue"
+  name "r2"
+  pose [-3.53 -0.27 0 165.780]
+)
+
+myrobot
+(
+  color "green"
+  name "r3"
+  pose [-5.57 -0.19 0 160.219]
+)
+
+myrobot
+(
+  color "cyan"
+  name "r4"
+  pose [-4.13 -6.83 0 -127.216]
+)
+
+myrobot
+(
+  color "yellow"
+  name "r5"
+  pose [5.65 6.11 0 -110.414]
+)
+
+myrobot
+(
+  color "magenta"
+  name "r6"
+  pose [-4.40 -4.17 0 -135.449]
+)
+
