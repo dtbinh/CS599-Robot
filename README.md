@@ -1,9 +1,9 @@
 # CS599-Robot-P2
 
 * How to compile?
-1. go to "control" folder
-2. make all
+go to "control" folder
+make all
 
 * How to run the robots?
-1. go to "control" folder
-2. sh startwalk.sh
+go to "control" folder
+sh startwalk.sh
