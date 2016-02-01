@@ -5,7 +5,6 @@
 #include "behavior.h"
 #include "RobotMessage.h"
 #include "RobotSocketConnection.h"
-#include "InputControl.h"
 #include "RobotTimer.h"
 
 int main(int argc, char **argv)
