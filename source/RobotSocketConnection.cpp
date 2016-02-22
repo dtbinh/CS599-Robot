@@ -48,10 +48,17 @@ void RobotSocket::create() throw(RobotSocketException) {
   }
   
   // to avoid the "address already in use" error
-  int yes = 1;
-  if (setsockopt(mFileDescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
+  const int yes = 1;
+  socklen_t optlen = sizeof(yes);
+  if (setsockopt(mFileDescriptor, SOL_SOCKET, SO_REUSEADDR, &yes, optlen) < 0) {
     throw RobotSocketException("setsockopt SO_REUSEADDR failed");
   }
+
+  #ifdef __APPLE__   // MacOS/X requires an additional call also
+  if (setsockopt(mFileDescriptor, SOL_SOCKET, SO_REUSEPORT, &yes, optlen) < 0) {
+    throw RobotSocketException("setsockopt SO_REUSEPORT failed");
+  }
+  #endif
 }
 
 void RobotSocket::createListen(int listenPort) throw(RobotSocketException) {
@@ -75,14 +82,16 @@ void RobotSocket::setLocalPort(int localPort) throw(RobotSocketException) {
   localAddress.sin_port = htons(localPort);
   memset(&(localAddress.sin_zero), '\0', 8);
 
-  if (bind(mFileDescriptor, (sockaddr *) &localAddress, sizeof(localAddress)) < 0) {
+  socklen_t optlen = sizeof(localAddress);
+  if (bind(mFileDescriptor, (sockaddr *) &localAddress, optlen) < 0) {
     throw RobotSocketException("Bind failed");
   }
 }
 
 void RobotSocket::setBroadcast() throw(RobotSocketException) {
   int yes = 1;
-  if (setsockopt(mFileDescriptor, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(int)) < 0) {
+  socklen_t optlen = sizeof(yes);
+  if (setsockopt(mFileDescriptor, SOL_SOCKET, SO_BROADCAST, &yes, optlen) < 0) {
       throw RobotSocketException("setsockopt BROADCAST failed");
   }
 }
@@ -105,8 +114,9 @@ int RobotSocket::send(std::string message, std::string remoteAddress, int remote
   int nBytes = 0;
 
   sockaddr_in addr;
+  socklen_t optlen = sizeof(addr);
   fillAddressAndPort(remoteAddress, remotePort, addr);
-  if ((nBytes = sendto(mFileDescriptor, message.c_str(), message.length(), 0, (sockaddr *)&addr, sizeof(addr))) == -1) {
+  if ((nBytes = sendto(mFileDescriptor, message.c_str(), message.length(), 0, (sockaddr *)&addr, optlen)) == -1) {
     throw RobotSocketException("sendto failed");
     return -1;
   }
