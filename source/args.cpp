@@ -11,10 +11,11 @@
 
 #include "args.h"
 
+
 int parse_args(int argc, char** argv, RobotSetting &setting)
 {
   // set the flags
-  const char* optflags = "h:p:r:i:P:";
+  const char* optflags = "h:p:B:i:P:t";
   int ch;
 
   // use getopt to parse the flags
@@ -24,24 +25,27 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
     {
       // case values must match long_options
       case 'h': // hostname
-          setting.hostName = optarg;
-          break;
+        setting.robotAddress = optarg;
+        break;
       case 'p': // port
-          setting.port = atoi(optarg);
-          break;
-      case 'r': // role
-          if (optarg[0] == 'l') {
-            setting.role = ROBOT_ROLE_LEADER;
-          } else {
-            setting.role = ROBOT_ROLE_WORKER;
-          }
-          break;
-      case 'i': // broadcast network address
-          setting.remoteAddress = optarg;
-          break;
+        setting.robotPort = atoi(optarg);
+        break;
+      case 'B': // broadcast network address
+        setting.broadcastAddress = optarg;
+        break;
       case 'P': // listen port number
-          setting.listenPort = atoi(optarg);
-          break;
+        setting.broadcastPort = atoi(optarg);
+        break;
+      case 't': // run type(a:aggression, d:dispersion)
+        if (optarg[0] != RUN_TYPE_AGGREGATION && optarg[0] != RUN_TYPE_DISPERSION)
+        {
+          // error handling
+        }
+        else
+        {
+          setting.runType = optarg[0];
+        }
+        break;
       default:  // unknown
         print_usage(argc, argv);
         exit (-1);
@@ -65,10 +69,10 @@ void print_usage(int argc, char** argv)
   cerr << "  -P <port>      : listen port (default: " << DEFAUL_BROADCAST_PORT << ")" << endl;
 } // end print_usage
 
-RobotSetting::RobotSetting() {
-  hostName = std::string(PlayerCc::PLAYER_HOSTNAME);
-  port = PlayerCc::PLAYER_PORTNUM;
-  role = ROBOT_ROLE_WORKER;
-  remoteAddress = std::string(DEFAUL_BROADCAST_NETMASK);
-  listenPort = DEFAUL_BROADCAST_PORT;
+RobotSetting::RobotSetting()
+{
+  robotAddress = std::string(PlayerCc::PLAYER_HOSTNAME);
+  robotPort = PlayerCc::PLAYER_PORTNUM;
+  broadcastAddress = std::string(DEFAUL_BROADCAST_NETMASK);
+  broadcastPort = DEFAUL_BROADCAST_PORT;
 }

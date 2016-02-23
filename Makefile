@@ -4,19 +4,31 @@ LDFLAGS = $(shell pkg-config --libs playerc++)
 
 SRC = source/
 BIN = build/
-PROG = args behavior InputControl RobotMessage RobotSocketConnection RobotTimer safewalk
 
-SRCS = $(addprefix $(SRC), $(PROG))
+PROG = args behavior InputControl RobotMessage RobotSocketConnection RobotTimer
+TARGET = swarm
+
 BINS = $(addsuffix .o, $(addprefix $(BIN), $(basename $(PROG))))
 
-all: target
+all: $(BIN) $(BIN)$(TARGET)
 
-target: $(BINS)
-	$(CC) $(BINS) -o $(BIN)safewalk $(LDFLAGS)
+$(BIN)$(TARGET): $(BINS) $(BIN)$(TARGET).o
+	$(CC) $(BINS) $(BIN)$(TARGET).o -o $(BIN)$(TARGET) $(LDFLAGS)
 
-$(BINS): $(BIN)%.o: $(SRC)%.cpp
+$(BIN)%.o: $(SRC)%.cpp
 	$(CC) $(CFLAGS) $< -o $@
 
+$(BIN):
+	mkdir -p $(BIN)
+
+# build test codes
+test: $(BIN) $(BINS) testMessageReceive testMessageSend
+
+testMessageReceive: $(BINS) $(BIN)testMessageReceive.o
+	$(CC) $(BINS) $(BIN)testMessageReceive.o -o $(BIN)testMessageReceive $(LDFLAGS)
+	
+testMessageSend: $(BINS) $(BIN)testMessageSend.o
+	$(CC) $(BINS) $(BIN)testMessageSend.o -o $(BIN)testMessageSend $(LDFLAGS)
+
 clean:
-	rm -f $(BINS)
-	rm -f $(BIN)safewalk
+	rm -f $(BIN)*
