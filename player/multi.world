@@ -11,18 +11,18 @@ include "sick.inc"
 
 window
 ( 
-  size [ 640.000 680.000 ] 
+  size [ 500.000 500.000 ] 
   center [0.000 0.000] 
-  scale 36.995 # pixels per meter
+  scale 20 # pixels per meter
 
   show_data 0
 )
 
 floorplan
 ( 
-  bitmap "bitmaps/cave.png" 
+  #bitmap "bitmaps/cave.png" 
   map_resolution 0.02
-  size [16.000 16.000 0.800] 
+  #size [100.000 100.000 0.800] 
   name "cave"
   color "gray50"
   gui_grid 1
@@ -59,22 +59,21 @@ myrobot
 (
   color "red"
   name "r1"
-  pose [6.41 3.91 0 165.780]
-#  pose [0 0 0 0]
+  pose [0 0 0 0]
 )
 
 myrobot
 (
   color "NavyBlue"
   name "r2"
-  pose [-3.53 -0.27 0 165.780]
+  pose [-4 2 0 165.780]
 )
 
 myrobot
 (
   color "green"
   name "r3"
-  pose [-5.57 -0.19 0 160.219]
+  pose [4 2 0 160.219]
 )
 
 myrobot
@@ -97,4 +96,3 @@ myrobot
   name "r6"
   pose [-4.40 -4.17 0 -135.449]
 )
-
