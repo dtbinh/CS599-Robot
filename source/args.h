@@ -4,10 +4,12 @@
 #include <libplayerc++/playerc++.h>
 #include <string>
 
-#define DEFAUL_BROADCAST_NETMASK "127.255.255.255"
-#define DEFAUL_BROADCAST_PORT 9090
+#define DEFAULT_BROADCAST_NETMASK "127.255.255.255"
+#define DEFAULT_BROADCAST_PORT 9090
+#define DEFAULT_SENSE_DISTANCE 140
 #define RUN_TYPE_AGGREGATION 'a'
 #define RUN_TYPE_DISPERSION 'd'
+#define INCHE_METER_FACTOR 0.0254
 
 class RobotSetting
 {
@@ -18,12 +20,13 @@ public:
   int broadcastPort;
 	char runType;
 	double senseRange;
-	double robotDistance;
+	double distance;
 
 	RobotSetting();
 };
 
 void print_usage(int argc, char** argv);
 int parse_args(int argc, char** argv, RobotSetting &setting);
+bool checkSetting(RobotSetting &setting);
 
 #endif

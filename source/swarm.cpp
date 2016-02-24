@@ -6,65 +6,13 @@
 #include "RobotMessage.h"
 #include "RobotSocketConnection.h"
 
-#define PI 3.1415926535
-
-#define MAX_ROBOT_NUMBER 10
-class RobotInfo
-{
-public:
-  double x = 0;
-  double y = 0;
-  int robotID = -1;
-};
-
-class RobotList
-{
-public:
-  RobotList(){ this->mSize = 0; };
-  int getSize() { return this->mSize; }
-
-  RobotInfo* getInfo(int index)
-  {
-    if (index < this->mSize) { return &(this->mList[index]); }
-    return NULL;
-  }
-
-  void updateInfo(const RobotInfo &info)
-  {
-     // Add/Update position
-    for (int i = 0; i < MAX_ROBOT_NUMBER; i ++)
-    {
-      RobotInfo *pInfo = &(this->mList[i]);
-      if (pInfo->robotID == info.robotID)
-      { // Update position
-        pInfo->x = info.x;
-        pInfo->y = info.y;
-        break;
-      }
-
-      if (pInfo->robotID < 0)
-      { // Add a new robot
-        pInfo->robotID = info.robotID;
-        pInfo->x = info.x;
-        pInfo->y = info.y;
-        this->mSize = i + 1;
-        break;
-      }
-    }
-  }
-
-private:
-  RobotInfo mList[MAX_ROBOT_NUMBER];
-  int mSize;
-};
-
 int main(int argc, char **argv)
 {
   RobotSetting robotSetting;
   parse_args(argc, argv, robotSetting);
   int myID = robotSetting.robotPort;
-  RobotList robotList; //TODO: use hash map
 
+  RobotList robotList;
   try
   {
     PlayerCc::PlayerClient robot(robotSetting.robotAddress, robotSetting.robotPort);
@@ -82,26 +30,6 @@ int main(int argc, char **argv)
     bool exitLoop = false;
     while (!exitLoop)
     {
-      // Listen to position report, record position of other robots
-      RobotMessage message;
-      while (listenMessage(listenSocket, message))
-      { // Message Loop
-        if (waitForMessage(message, MSG_TYPE_POSITION) && message.getSenderID() != myID)
-        {
-          // Add/Update position
-          RobotInfo robotInfo;
-          robotInfo.robotID = message.getSenderID();
-          robotInfo.x = message.getX();
-          robotInfo.y = message.getY();
-          robotList.updateInfo(robotInfo);
-        }
-
-        if (waitForCommand(message, CMD_EXIT))
-        {
-          exitLoop = true;
-        }
-      }
-
       // Read robot status
       robot.Read();
 
@@ -110,73 +38,70 @@ int main(int argc, char **argv)
       double myY = pp.GetYPos();
       double myYaw = pp.GetYaw();
 
+      // Listen to position report, record position of other robots
+      RobotMessage message;
+      while (listenMessage(listenSocket, message))
+      { // Message Loop
+
+        // Process position report
+        if (waitForMessage(message, MSG_TYPE_POSITION) && message.getSenderID() != myID)
+        {
+          double x = message.getX() - myX;
+          double y = message.getY() - myY;
+          double distance = std::sqrt(x*x + y*y);
+          if (distance < robotSetting.senseRange)
+          {
+            // Add/Update position
+            RobotInfo robotInfo;
+            robotInfo.robotID = message.getSenderID();
+            robotInfo.x = message.getX();
+            robotInfo.y = message.getY();
+            robotList.updateInfo(robotInfo);
+          }
+          else
+          {
+            robotList.deleteInfo(message.getSenderID());
+          }
+        }
+
+        // Process exit command
+        if (waitForCommand(message, CMD_EXIT))
+        {
+          exitLoop = true;
+        }
+      }
+
+      // DEBUG
+      // char msg[100];
+      // sprintf(msg, "MyPosition(%.2f, %.2f)", myX, myY);
+      // std::cout << msg << "; ";
+      // for (int i = 0; i < robotList.getSize(); i ++)
+      // {
+      //   RobotInfo *pInfo = robotList.getInfo(i);
+      //   if (pInfo->robotID > 0)
+      //   {
+      //     sprintf(msg, "R%d(%.2f, %.2f)", pInfo->robotID, pInfo->x, pInfo->y);
+      //     std::cout << msg << "; ";
+      //   }
+      // }
+      // std::cout << std::endl;
+
       // Broadcast my position
       sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myX, myY);
 
-      // Calculate range
-      double rangeLimit = 10;
-      double centroidX = 0;
-      double centroidY = 0;
-      int inRangeCount = 0;
-      for (int i = 0; i < robotList.getSize(); i ++)
-      {
-        RobotInfo *pInfo = robotList.getInfo(i);
-        double x = std::fabs(pInfo->x - myX);
-        double y = std::fabs(pInfo->y - myY);
-        double distance = std::sqrt(x*x + y*y);
-        if (distance > rangeLimit) { continue; }
-        centroidX += pInfo->x;
-        centroidY += pInfo->y;
-        inRangeCount ++;
-
-        // DEBUG
-        // char msg[100];
-        // sprintf(msg, "Robot%i(%.2f, %.2f, %.2f)", inRangeCount, pInfo->x, pInfo->y, distance);
-        // std::cout << msg << " ";
+      // Behaviors go here!
+      double forwardSpeed = 0;
+      double turnSpeed = 0;
+      if (robotSetting.runType == RUN_TYPE_DISPERSION)
+      { // Dispersion
+        doDisperse(forwardSpeed, turnSpeed, myX, myY, myYaw, robotList, robotSetting.distance);
       }
-      if (inRangeCount > 0) {
-        // centroidX = centroidX/inRangeCount;
-        // centroidY = centroidY/inRangeCount;
-        centroidX = (centroidX + myX)/(inRangeCount+1);
-        centroidY = (centroidY + myY)/(inRangeCount+1);
-        double targetX = myX - centroidX;
-        double targetY = myY - centroidY;
-        double newYaw = std::atan(targetY / targetX);
-        double newSpeed = 0;
-        if (targetX < 0)
-        {
-          newYaw = PI + newYaw;
-        }
-
-        // Normalize the Yaw values
-        if (myYaw > PI) {myYaw = myYaw - 2*PI;}
-        if (newYaw > PI) {newYaw = newYaw - 2*PI;}
-        // Determine speed
-        newSpeed = (std::fabs(newYaw - myYaw) > (PI/180*10))? 0: 1;
-        pp.SetSpeed(newSpeed, newYaw - myYaw);
-
-        // DEBUG
-        // char msg[100];
-        // sprintf(msg, "MyPosition(%.2f, %.2f, %.2f); Centroid(%.2f, %.2f); NewYaw(%.2f)", myX, myY, PlayerCc::rtod(myYaw), centroidX, centroidY, PlayerCc::rtod(newYaw));
-        // std::cout << msg << std::endl;
+      else if (robotSetting.runType == RUN_TYPE_AGGREGATION)
+      { // aggregation
+        doAggregate(forwardSpeed, turnSpeed, myX, myY, myYaw, robotList, robotSetting.distance);
       }
-      else
-      {
-        pp.SetSpeed(0, 0);
-        // DEBUG
-        // std::cout << "No one in range" << std::endl;
-      }
-      // pp.SetSpeed(newspeed, PlayerCc::dtor(newturnrate));
 
-      // DEBUG
-      // for (int i = 0; i < robotList.getSize(); i ++)
-      // {
-      //   RobotInfo *info = robotList.getInfo(i);
-      //   char msg[60];
-      //   sprintf(msg, "%d(%.2f,%.2f)", info->robotID, info->x, info->y);
-      //   std::cout << msg << " " << std::flush;
-      // }
-
+      pp.SetSpeed(forwardSpeed, turnSpeed);
       sleep(1);
     }
   }

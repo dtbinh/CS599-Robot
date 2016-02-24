@@ -5,15 +5,13 @@
 # the size of a pixel in Stage's underlying raytrace model in meters
 resolution     0.02
 
-include "pioneer.inc"
 include "map.inc"
-include "sick.inc"
 
 window
 ( 
-  size [ 500.000 500.000 ] 
+  size [ 800.000 800.000 ] 
   center [0.000 0.000] 
-  scale 20 # pixels per meter
+  scale 40 # pixels per meter
 
   show_data 0
 )
@@ -22,35 +20,35 @@ floorplan
 ( 
   #bitmap "bitmaps/cave.png" 
   map_resolution 0.02
-  #size [100.000 100.000 0.800] 
+  #size [40.000 40.000 0.800] 
   name "cave"
-  color "gray50"
+  color "white"
   gui_grid 1
   gui_outline 1
 )
 
 
-# extend the pioneer2dx definition from pioneer.inc
-#
-define myrobot pioneer2dx_base_no_sonar
+define myrobot position
 (
-  sicklaser( pose [0.030 0 0 0 ]  alwayson 1 )
-
+  drive "diff"
+  origin [0 0 0 0]
+  gui_nose 1
   ranger_return 1
 
+  size [0.25 0.25 0.1]
   # simplified Body shape:
-  block( 
+  block(
     points 8
-    point[0] [-0.2 0.12]
-    point[1] [-0.2 -0.12]
-    point[2] [-0.12 -0.2555 ]
+    point[0] [-0.05 0.03]
+    point[1] [-0.05 -0.03]
+    point[2] [-0.03 -0.06 ]
 
-    point[3] [0.12 -0.2555]
-    point[4] [0.2 -0.12]
-    point[5] [0.2 0.12]
-    point[6] [0.12 0.2555]
-    point[7] [-0.12 0.2555]
-    z [0 0.22]
+    point[3] [0.03 -0.06]
+    point[4] [0.05 -0.03]
+    point[5] [0.05 0.03]
+    point[6] [0.03 0.06]
+    point[7] [-0.03 0.06]
+    z [0 0.1]
   )
 )
 

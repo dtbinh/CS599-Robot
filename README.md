@@ -1,13 +1,19 @@
-# CS599-Robot-P2
+# CS599-Robot-P3
 
 ### How to compile?
 ```
-cd control
 make all
 ```
 
 ### How to run the robots?
 ```
-cd control
-sh startwalk.sh
+sh run_disperse.sh (for dispersion)
+sh run_aggregate.sh (for aggregation)
 ```
+Note: robots run as background processes
+
+### How to stop the robots?
+```
+sh stop.sh
+```
+Note: robots are listening to broadcasting messages, once hear a STOP message they will exit

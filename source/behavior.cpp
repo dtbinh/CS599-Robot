@@ -3,6 +3,10 @@
 #include <iostream>
 #include "behavior.h"
 
+
+// ************************
+// communication functions
+// ************************
 bool listenMessage(RobotSocket &socket, RobotMessage& message)
 {
   char recvBuffer[MAX_SOCKET_BUF];
@@ -31,18 +35,6 @@ void sendMessagePosition(RobotSocket &socket, std::string remoteAddress, int lis
   socket.send(message.toString(), remoteAddress, listenPort);
 }
 
-void sendMessageRegister(RobotSocket &socket, std::string remoteAddress, int listenPort, int robotID)
-{
-  RobotMessage message(MSG_TYPE_REGISTER, robotID);
-  socket.send(message.toString(), remoteAddress, listenPort);
-}
-
-void sendMessageRequestRegister(RobotSocket &socket, std::string remoteAddress, int listenPort, int robotID)
-{
-  RobotMessage message(MSG_TYPE_REQUESTREGISTER, robotID);
-  socket.send(message.toString(), remoteAddress, listenPort);
-}
-
 bool waitForMessage(RobotMessage &message, char expectedType) {
   return (message.getType() == expectedType);
 }
@@ -52,105 +44,203 @@ bool waitForCommand(RobotMessage &message, char expectedCommand)
   return ((message.getType() == MSG_TYPE_COMMAND) && (message.getCommand() == expectedCommand));
 }
 
-void changeState(int& currentState, int nextState) {
-  currentState = nextState;
-}
-
-void wander(double &forwardSpeed, double &turnSpeed) {
-  int maxSpeed = 1;
-  int maxTurn = 45;
-  double fspeed, tspeed, ratio;
-  
-  //fspeed is between 0 and 10
-  fspeed = rand()%11;
-
-  //(fspeed/10) is between 0 and 1
-  fspeed = (fspeed/10);
-  fspeed = fspeed * maxSpeed;
-  tspeed = rand()%(2*maxTurn);
-  tspeed = tspeed-maxTurn;
-
-  //tspeed is between -maxTurn and +maxTurn
-  forwardSpeed = fspeed*0.6;
-  turnSpeed = tspeed;
-}
-
-void voidObstacles(double &forwardSpeed, double &turnSpeed, PlayerCc::RangerProxy &rangerProxy)
+// ************************
+// Utility functions
+// ************************
+void calculateCentroid(RobotList &robotList, double myX, double myY, double &centroidX, double &centroidY)
 {
-  double minDistanceFront = 0.8;
-  double minDistanceSide = 0.5;
-
-  
-  int minDegree = 60;
-  int maxDegree = 120;
-  double minFront = rangerProxy[minDegree];
-  for (int i = minDegree; i < maxDegree; i ++)
+  int count = 0;
+  centroidX = 0;
+  centroidY = 0;
+  for (int i = 0; i < robotList.getSize(); i ++)
   {
-    if (minFront > rangerProxy[i])
-      minFront = rangerProxy[i];
+    RobotInfo *pInfo = robotList.getInfo(i);
+    if (pInfo->robotID < 0) { continue; }
+
+    centroidX += pInfo->x;
+    centroidY += pInfo->y;
+    count ++;
+
+    // DEBUG
+    // char msg[100];
+    // sprintf(msg, "Robot%d(%.2f, %.2f)", pInfo->robotID, pInfo->x, pInfo->y);
+    // std::cout << msg << "; ";
   }
 
-  minDegree = 0;
-  maxDegree = 60;
-  double minLeft = rangerProxy[minDegree];
-  for (int i = minDegree; i < maxDegree; i ++)
+  // centroidX = centroidX/inRangeCount;
+  // centroidY = centroidY/inRangeCount;
+  centroidX = (centroidX + myX)/(count+1);
+  centroidY = (centroidY + myY)/(count+1);
+}
+
+double findNearestDistance(RobotList &robotList, double myX, double myY)
+{
+  double result = -1;
+  for (int i = 0; i < robotList.getSize(); i ++)
   {
-    if (minLeft > rangerProxy[i])
-      minLeft = rangerProxy[i];
+    RobotInfo *pInfo = robotList.getInfo(i);
+    if (pInfo->robotID < 0) { continue; }
+
+    double x = pInfo->x - myX;
+    double y = pInfo->y - myY;
+    double distance = std::sqrt(x*x + y*y);
+
+    if (result < 0 || distance < result)
+    {
+      result = distance;
+    }
   }
 
-  minDegree = 120;
-  maxDegree = 180;
-  double minRight = rangerProxy[minDegree];
-  for (int i = minDegree; i < maxDegree; i ++)
-  {
-    if (minRight > rangerProxy[i])
-      minRight = rangerProxy[i];
-  }
+  return result;
+}
 
-  // avoid
-  if (minFront <= minDistanceFront)
-  {
+// ************************
+// Behaviors
+// ************************
+void doDisperse(
+  double &forwardSpeed, double &turnSpeed,
+  double myX, double myY, double myYaw,
+  RobotList &robotList,
+  double rangeLimit)
+{
+  double centroidX = 0;
+  double centroidY = 0;
+
+  double nearestDistance = findNearestDistance(robotList, myX, myY);
+  if (nearestDistance > 0 && nearestDistance < rangeLimit)
+  { // Some body in range
+
+    calculateCentroid(robotList, myX, myY, centroidX, centroidY);
+    double targetX = myX - centroidX;
+    double targetY = myY - centroidY;
+    double newYaw = std::atan(targetY / targetX);
+    if (targetX < 0) // transform the coordination from C to Player
+    {
+      newYaw = PI + newYaw;
+    }
+
+    // Normalize the Yaw values, fit in range [-PI, PI]
+    if (myYaw > PI) {myYaw = myYaw - 2*PI;}
+    if (newYaw > PI) {newYaw = newYaw - 2*PI;}
+
+    // Determine speed & turn rate
+    forwardSpeed = (std::fabs(newYaw - myYaw) > (PI/180*10))? 0: 0.2;
+    turnSpeed = newYaw - myYaw;
+  }
+  else
+  { // No one in range
     forwardSpeed = 0;
-    if ((minLeft <= minDistanceSide) && (minRight <= minDistanceSide)) {
-      // obstacle at both sides
-      turnSpeed = 180;
+    turnSpeed = 0;
+  }
+}
+
+void doAggregate(
+  double &forwardSpeed, double &turnSpeed,
+  double myX, double myY, double myYaw,
+  RobotList &robotList,
+  double rangeLimit)
+{
+  double centroidX = 0;
+  double centroidY = 0;
+
+  double nearestDistance = findNearestDistance(robotList, myX, myY);
+
+  // DEBUG
+  // std::cout << "near:" << nearestDistance << std::endl;
+  // std::cout << "RangeLimit: " << rangeLimit << std::endl;
+
+  if (nearestDistance > 0 && nearestDistance > rangeLimit)
+  { // Some body in range
+    calculateCentroid(robotList, myX, myY, centroidX, centroidY);
+    double targetX = centroidX - myX;
+    double targetY = centroidY - myY;
+    double newYaw = std::atan(targetY / targetX);
+
+    if (targetX < 0) // transform the coordination from C to Player
+    {
+      newYaw = PI + newYaw;
     }
 
-    if ((minLeft <= minDistanceSide) && (minRight > minDistanceSide)) {
-      // obstacle at left
-      turnSpeed = 60;
-    }
+    // Normalize the Yaw values, fit in range [-PI, PI]
+    if (myYaw > PI) {myYaw = myYaw - 2*PI;}
+    if (newYaw > PI) {newYaw = newYaw - 2*PI;}
 
-    if ((minLeft > minDistanceSide) && (minRight <= minDistanceSide)) {
-      // obstacle at right
-      turnSpeed = -60;
-    }
+    // DEBUG
+    // char msg[100];
+    // sprintf(msg, "MyPos(%.2f, %.2f)", myX, myY);
+    // std::cout << msg << "; ";
+    // sprintf(msg, "Centroid(%.2f, %.2f)", centroidX, centroidY);
+    // std::cout << msg << "; ";
+    // sprintf(msg, "Target(%.2f, %.2f)", targetX, targetY);
+    // std::cout << msg << "; ";
+    // sprintf(msg, "MyYaw(%.2f)", PlayerCc::rtod(myYaw));
+    // std::cout << msg << "; ";
+    // sprintf(msg, "NewYaw(%.2f)", PlayerCc::rtod(newYaw));
+    // std::cout << msg << std::endl;
 
-    if ((minLeft > minDistanceSide) && (minRight > minDistanceSide)) {
-      // no obstacle at either side
-      turnSpeed = (minLeft > minRight)? -90: 90;
-    }
+    // Determine speed & turn rate
+    forwardSpeed = (std::fabs(newYaw - myYaw) > (PI/180*10))? 0: 0.2;
+    turnSpeed = newYaw - myYaw;
+  }
+  else
+  { // No one in range
+    forwardSpeed = 0;
+    turnSpeed = 0;
+  }
+}
 
-  } else {
-    if ((minLeft <= minDistanceSide) && (minRight <= minDistanceSide)) {
-      turnSpeed = (minLeft < minRight)? 10: -10;
-      forwardSpeed = forwardSpeed * 0.5;
-    }
+// *********************************
+// Implementation of class RobotList
+// *********************************
+RobotList::RobotList() {this->mSize = MAX_ROBOT_NUMBER;}
 
-    if ((minLeft <= minDistanceSide) && (minRight > minDistanceSide)) {
-      turnSpeed = 20;
-      forwardSpeed = forwardSpeed * 0.5;
-    }
+int RobotList::getSize(){return MAX_ROBOT_NUMBER;}
 
-    if ((minLeft > minDistanceSide) && (minRight <= minDistanceSide)) {
-      turnSpeed = -20;
-      forwardSpeed = forwardSpeed * 0.5;
-    }
+RobotInfo* RobotList::getInfo(int index)
+{
+  if (index < this->mSize) { return &(this->mList[index]); }
+  return NULL;
+}
 
-    if ((minLeft > minDistanceSide) && (minRight > minDistanceSide)) {
+void RobotList::updateInfo(const RobotInfo &info)
+{
+   // Update position
+  int i;
+  for (i = 0; i < MAX_ROBOT_NUMBER; i ++)
+  {
+    RobotInfo *pInfo = &(this->mList[i]);
+    if (pInfo->robotID == info.robotID)
+    { // Update position
+      pInfo->x = info.x;
+      pInfo->y = info.y;
+      break;
     }
   }
 
+  if (i < MAX_ROBOT_NUMBER) { return; }
+  // Add position
+  for (i = 0; i < MAX_ROBOT_NUMBER; i++)
+  {
+    RobotInfo *pInfo = &(this->mList[i]);
+    if (pInfo->robotID < 0)
+    { // Add a new robot
+      pInfo->robotID = info.robotID;
+      pInfo->x = info.x;
+      pInfo->y = info.y;
+      break;
+    }
+  }
+}
 
+void RobotList::deleteInfo(const int robotID)
+{
+  for (int i = 0; i < MAX_ROBOT_NUMBER; i++)
+  {
+    RobotInfo *pInfo = &(this->mList[i]);
+    if (pInfo->robotID == robotID)
+    {
+      pInfo->robotID = -1;
+      break;
+    }
+  }
 }
