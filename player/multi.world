@@ -35,7 +35,7 @@ define myrobot position
   gui_nose 1
   ranger_return 1
 
-  size [0.25 0.25 0.1]
+  size [0.3 0.3 0.1]
   # simplified Body shape:
   block(
     points 8

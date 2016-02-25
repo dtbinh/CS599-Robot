@@ -60,17 +60,12 @@ void calculateCentroid(RobotList &robotList, double myX, double myY, double &cen
     centroidX += pInfo->x;
     centroidY += pInfo->y;
     count ++;
-
-    // DEBUG
-    // char msg[100];
-    // sprintf(msg, "Robot%d(%.2f, %.2f)", pInfo->robotID, pInfo->x, pInfo->y);
-    // std::cout << msg << "; ";
   }
 
-  // centroidX = centroidX/inRangeCount;
-  // centroidY = centroidY/inRangeCount;
-  centroidX = (centroidX + myX)/(count+1);
-  centroidY = (centroidY + myY)/(count+1);
+  centroidX = centroidX/count;
+  centroidY = centroidY/count;
+  // centroidX = (centroidX + myX)/(count+1);
+  // centroidY = (centroidY + myY)/(count+1);
 }
 
 double findNearestDistance(RobotList &robotList, double myX, double myY)
@@ -108,24 +103,26 @@ void doDisperse(
 
   double nearestDistance = findNearestDistance(robotList, myX, myY);
   if (nearestDistance > 0 && nearestDistance < rangeLimit)
-  { // Some body in range
+  { // at least one robot near me
 
+    // I should go away from the centroid
+    // Find out the target position
     calculateCentroid(robotList, myX, myY, centroidX, centroidY);
     double targetX = myX - centroidX;
     double targetY = myY - centroidY;
+
+    // Find out the target direction
     double newYaw = std::atan(targetY / targetX);
     if (targetX < 0) // transform the coordination from C to Player
-    {
       newYaw = PI + newYaw;
-    }
-
-    // Normalize the Yaw values, fit in range [-PI, PI]
-    if (myYaw > PI) {myYaw = myYaw - 2*PI;}
-    if (newYaw > PI) {newYaw = newYaw - 2*PI;}
+    else
+      newYaw = std::fmod((2 * PI + newYaw), (2 * PI));
 
     // Determine speed & turn rate
-    forwardSpeed = (std::fabs(newYaw - myYaw) > (PI/180*10))? 0: 0.2;
     turnSpeed = newYaw - myYaw;
+    turnSpeed = (turnSpeed > PI)? (turnSpeed - 2 * PI): turnSpeed; // turn left over 180 = turn right
+    turnSpeed = (turnSpeed < -PI)? (turnSpeed + 2 * PI): turnSpeed; // turn right over 180 = turn left
+    forwardSpeed = (std::fabs(turnSpeed) > (180/PI*20))? 0: 0.2;
   }
   else
   { // No one in range
@@ -144,43 +141,26 @@ void doAggregate(
   double centroidY = 0;
 
   double nearestDistance = findNearestDistance(robotList, myX, myY);
-
-  // DEBUG
-  // std::cout << "near:" << nearestDistance << std::endl;
-  // std::cout << "RangeLimit: " << rangeLimit << std::endl;
-
   if (nearestDistance > 0 && nearestDistance > rangeLimit)
-  { // Some body in range
+  { // the nearest robot is out of range
+
+    // I should go toward the centroid
     calculateCentroid(robotList, myX, myY, centroidX, centroidY);
     double targetX = centroidX - myX;
     double targetY = centroidY - myY;
+
+    // FInd out the target direction
     double newYaw = std::atan(targetY / targetX);
-
     if (targetX < 0) // transform the coordination from C to Player
-    {
       newYaw = PI + newYaw;
-    }
-
-    // Normalize the Yaw values, fit in range [-PI, PI]
-    if (myYaw > PI) {myYaw = myYaw - 2*PI;}
-    if (newYaw > PI) {newYaw = newYaw - 2*PI;}
-
-    // DEBUG
-    // char msg[100];
-    // sprintf(msg, "MyPos(%.2f, %.2f)", myX, myY);
-    // std::cout << msg << "; ";
-    // sprintf(msg, "Centroid(%.2f, %.2f)", centroidX, centroidY);
-    // std::cout << msg << "; ";
-    // sprintf(msg, "Target(%.2f, %.2f)", targetX, targetY);
-    // std::cout << msg << "; ";
-    // sprintf(msg, "MyYaw(%.2f)", PlayerCc::rtod(myYaw));
-    // std::cout << msg << "; ";
-    // sprintf(msg, "NewYaw(%.2f)", PlayerCc::rtod(newYaw));
-    // std::cout << msg << std::endl;
+    else
+      newYaw = std::fmod((2 * PI + newYaw), (2 * PI));
 
     // Determine speed & turn rate
-    forwardSpeed = (std::fabs(newYaw - myYaw) > (PI/180*10))? 0: 0.2;
     turnSpeed = newYaw - myYaw;
+    turnSpeed = (turnSpeed > PI)? (turnSpeed - 2 * PI): turnSpeed; // turn left over 180 = turn right
+    turnSpeed = (turnSpeed < -PI)? (turnSpeed + 2 * PI): turnSpeed; // turn right over 180 = turn left
+    forwardSpeed = (std::fabs(turnSpeed) > (180/PI*20))? 0: 0.2;
   }
   else
   { // No one in range
