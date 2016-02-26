@@ -2,10 +2,9 @@
 #include <iostream>
 
 #include "args.h"
-#include "behavior.h"
 #include "RobotBehavior.h"
-#include "RobotMessage.h"
-#include "RobotSocketConnection.h"
+#include "RobotCommunication.h"
+#include "SocketConnection.h"
 
 int main(int argc, char **argv) {
   RobotSetting robotSetting;
@@ -21,7 +20,8 @@ int main(int argc, char **argv) {
     pp.SetMotorEnable (true);
 
     // Create communication
-    RobotSocket listenSocket, sendSocket;
+    RobotCommunication::Communication robotCommunication;
+    RobotNetwork::Socket listenSocket, sendSocket;
     listenSocket.createListen(robotSetting.broadcastPort);
     sendSocket.createSend();
 
@@ -35,10 +35,10 @@ int main(int argc, char **argv) {
       RobotPosition myPosition(pp.GetXPos(), pp.GetYPos(), pp.GetYaw());
 
       // Listen to position report, record position of other robots
-      RobotMessage message;
-      while (listenMessage(listenSocket, message)) { // Message Loop
+      RobotCommunication::Message message;
+      while (robotCommunication.listenMessage(listenSocket, message)) { // Message Loop
         // Process position report
-        if (waitForMessage(message, MSG_TYPE_POSITION) && message.getSenderID() != myID) {
+        if (robotCommunication.waitForMessage(message, RobotCommunication::MSG_TYPE_POSITION) && message.getSenderID() != myID) {
 
           RobotPosition reporterPosition(message.getX(), message.getY(), 0);
           if (reporterPosition.getDistanceTo(myPosition) < robotSetting.senseRange) { // Add/Update position
@@ -49,13 +49,13 @@ int main(int argc, char **argv) {
         }
 
         // Process exit command
-        if (waitForCommand(message, CMD_EXIT)) {
+        if (robotCommunication.waitForCommand(message, RobotCommunication::CMD_EXIT)) {
           exitLoop = true;
         }
       }
 
       // Broadcast my position
-      sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myPosition.getX(), myPosition.getY());
+      robotCommunication.sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myPosition.getX(), myPosition.getY());
 
       // Behaviors go here!
       RobotBehavior robotBehavior;
@@ -63,11 +63,14 @@ int main(int argc, char **argv) {
       if (robotSetting.runType == RUN_TYPE_DISPERSION) {
         // Dispersion
         motorData = robotBehavior.disperse(myPosition, robotList, robotSetting.distance);
+        motorData = motorData + robotBehavior.avoidRobot(myPosition, robotList);
       } else if (robotSetting.runType == RUN_TYPE_AGGREGATION) {
         // aggregation
         motorData = robotBehavior.aggregate(myPosition, robotList, robotSetting.distance);
+        motorData = motorData + robotBehavior.avoidRobot(myPosition, robotList);
       }
 
+      motorData.optimizeDirection();
       pp.SetSpeed(motorData.getMagnitude(), motorData.getDirection());
       sleep(1);
     }
@@ -75,7 +78,7 @@ int main(int argc, char **argv) {
   catch (PlayerCc::PlayerError & e) {
     std::cerr << e << std::endl;
     return -1;
-  } catch (RobotSocketException & e) {
+  } catch (RobotNetwork::SocketException & e) {
     std::cerr << e.what() << std::endl;
     return -1;
   }

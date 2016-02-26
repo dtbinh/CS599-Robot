@@ -1,18 +1,14 @@
 #include <cmath>
+#include <iostream>
 #include "RobotBehavior.h"
 
 /*
 * Implementation of MotorData
 */
-MotorData::MotorData(): mMagnitude(0), mDirection(0) { }
-
-MotorData::MotorData(const MotorData& data) {
-	this->setMagnitude(data.getMagnitude()).setDirection(data.getDirection());
-}
-
-MotorData::MotorData(const double magnitude, const double direction) {
-	this->setMagnitude(magnitude).setDirection(direction);
-}
+MotorData::MotorData(): mMagnitude(0), mDirection(0), mWeight(0) { }
+MotorData::MotorData(const MotorData& data): mMagnitude(data.getMagnitude()), mDirection(data.getDirection()), mWeight(data.getWeight()) { }
+MotorData::MotorData(const double magnitude, const double direction): mMagnitude(magnitude), mDirection(direction), mWeight(0) { }
+MotorData::MotorData(const double magnitude, const double direction, const int weight): mMagnitude(magnitude), mDirection(direction), mWeight(weight) { }
 
 double MotorData::getMagnitude() const {
 	return this->mMagnitude;
@@ -32,25 +28,40 @@ MotorData& MotorData::setDirection(double direction) {
 	return *this;
 }
 
+int MotorData::getWeight() const {
+  return this->mWeight;
+}
+
+MotorData& MotorData::setWeight(int weight) {
+  this->mWeight = weight;
+  return *this;
+}
+
 MotorData& MotorData::operator =(const MotorData& data) {
-	this->setMagnitude(data.getMagnitude()).setDirection(data.getDirection());
+	this->setMagnitude(data.getMagnitude()).setDirection(data.getDirection()).setWeight(data.getWeight());
 	return *this;
 }
 
-// Vector sumation: to combine two behaviors
-// Return: direction cast into [0, 2*PI]
 MotorData MotorData::operator+ (const MotorData& data) {
-	double myX = this->mMagnitude * cos(this->mDirection);
-	double myY = this->mMagnitude * sin(this->mDirection);
-	double x = data.getMagnitude() * cos(data.getDirection());
-	double y = data.getMagnitude() * sin(data.getDirection());
-	double newX = x + myX;
-	double newY = y + myY;
-	double direction = atan(newY / newX);
-	direction = (newX < 0)? (PI + direction): fmod((PI * 2 + direction), (PI * 2)); // Convert to [0, 2*PI]
-	double magnitude = sqrt(newX * newX + newY * newY);
+  int totalWeight = this->getWeight() + data.getWeight();
+  double magnitude = (this->getMagnitude() * this->getWeight() / totalWeight) + (data.getMagnitude() * data.getWeight() / totalWeight);
+  double direction = (this->getDirection() * this->getWeight() / totalWeight) + (data.getDirection() * data.getWeight() / totalWeight);
+	// double myX = this->mMagnitude * cos(this->mDirection);
+	// double myY = this->mMagnitude * sin(this->mDirection);
+	// double x = data.getMagnitude() * cos(data.getDirection());
+	// double y = data.getMagnitude() * sin(data.getDirection());
+	// double newX = x + myX;
+	// double newY = y + myY;
+	// double direction = (newX == 0)? 0: atan(newY / newX);
+	// direction = (newX < 0)? (PI + direction): fmod((PI * 2 + direction), (PI * 2)); // Convert to [0, 2*PI]
+	// double magnitude = sqrt(newX * newX + newY * newY);
 
-	return MotorData(magnitude, direction);
+  // DEBUG
+  // std::cout << "p1(" << (this->mMagnitude) << ", " << (this->mDirection * 180 / PI) << ") + ";
+  // std::cout << "p2(" << (data.getMagnitude()) << ", " << (data.getDirection() * 180 / PI) << ") = ";
+  // std::cout << "(" << magnitude << ", " << (direction * 180 / PI) << ")" << std::endl;
+
+	return MotorData(magnitude, direction, totalWeight);
 }
 
 MotorData& MotorData::optimizeDirection() {
@@ -64,6 +75,10 @@ MotorData& MotorData::optimizeDirection() {
 	return *this;
 }
 
+MotorData& MotorData::convertToTurn(double currentDirection) {
+  this->setDirection(this->getDirection() - currentDirection);
+  return *this;
+}
 
 /*
 * Implementation of RobotBehavior
@@ -72,7 +87,7 @@ RobotBehavior::RobotBehavior() {}
 
 MotorData RobotBehavior::disperse(RobotPosition myPosition, const RobotList &robotList, double rangeLimit) {
 
-	MotorData motorData(0, 0);
+	MotorData motorData(0, 0, DISPERSE_WEIGHT);
   double nearestDistance = this->getNearestRobotDistance(robotList, myPosition);
   if (nearestDistance > 0 && nearestDistance < rangeLimit)
   { // at least one robot near me
@@ -85,18 +100,18 @@ MotorData RobotBehavior::disperse(RobotPosition myPosition, const RobotList &rob
     double direction = centroidPosition.getDirectionTo(myPosition);
 
     // Determine speed & turn rate
-    motorData.setDirection(direction - myPosition.getYaw());
+    motorData.setDirection(direction);
+    motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    if (fabs(motorData.getDirection()) < (180 / PI * 20)) { // small angle turn: go and turn
-    	motorData.setMagnitude(0.2);
-    }
+    motorData.setMagnitude(MAX_MOTOR_SPEED);
   }
 
 	return motorData;
 }
 
 MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &robotList, double rangeLimit) {
-	MotorData motorData(0, 0);
+
+	MotorData motorData(0, 0, AGGREGATE_WEIGHT);
   double nearestDistance = this->getNearestRobotDistance(robotList, myPosition);
   if (nearestDistance > rangeLimit)
   { // the nearest robot is out of range
@@ -109,18 +124,59 @@ MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &ro
     double direction = myPosition.getDirectionTo(centroidPosition);
 
     // Determine speed & turn rate
-    motorData.setDirection(direction - myPosition.getYaw());
+    motorData.setDirection(direction);
+    motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    if (fabs(motorData.getDirection()) < (180 / PI * 20)) { // small angle turn: go and turn
-    	motorData.setMagnitude(0.2);
-    }
+    motorData.setMagnitude(MAX_MOTOR_SPEED);
+    // if (fabs(motorData.getDirection()) < (180 / PI * SMOOTH_TURN_ANGLE)) { // small angle turn: go and turn
+    // 	motorData.setMagnitude(MAX_AGGREGATE_MAGNITUDE);
+    // }
   }
 
     return motorData;
 }
 
 MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &robotList) {
-	return MotorData(0, 0);
+  RobotPosition nearestRobotToAvoid;
+  double smallestDistance = AVOID_DISTANCE + 1;
+  double directionToRobotAvoid, lowBoundDirectionAvoid, upBoundDirectionAvoid;
+
+  for (RobotConstIterator it = robotList.begin(); it != robotList.end(); it ++){
+    RobotPosition robotPosition = it->second;
+    double distanceToRobot = myPosition.getDistanceTo(robotPosition);
+    
+    if (distanceToRobot > AVOID_DISTANCE)
+      continue;
+
+    double directionToRobot = myPosition.getDirectionTo(robotPosition);
+    double halfAngleToAvoid = atan(AVOID_ROBOT_SIZE / 2 / distanceToRobot);
+    double lowBoundDirection = directionToRobot - halfAngleToAvoid;
+    double upBoundDirection = directionToRobot + halfAngleToAvoid;
+    if (myPosition.getYaw() >= lowBoundDirection && myPosition.getYaw() <= upBoundDirection) {
+      if (distanceToRobot < smallestDistance) {
+        smallestDistance = distanceToRobot;
+        directionToRobotAvoid = directionToRobot;
+        lowBoundDirectionAvoid = lowBoundDirection;
+        upBoundDirectionAvoid = upBoundDirection;
+      }
+    }
+  }
+
+  MotorData motorData(0, 0, 0);
+  if (smallestDistance < AVOID_DISTANCE) {
+    if (myPosition.getYaw() <= directionToRobotAvoid) {
+      // Robot is in my left, turn right
+      motorData.setDirection(lowBoundDirectionAvoid);
+    } else {
+      // Robot is in my right, turn left
+      motorData.setDirection(upBoundDirectionAvoid);
+    }
+    motorData.setMagnitude(AVOID_SPEED);
+    motorData.convertToTurn(myPosition.getYaw());
+    motorData.optimizeDirection();
+    motorData.setWeight(AVOID_WEIGHT);
+  }
+	return motorData;
 }
 
 RobotPosition RobotBehavior::getCentroid(const RobotList &robotList) {

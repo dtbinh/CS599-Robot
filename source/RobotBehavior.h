@@ -40,20 +40,25 @@ public:
 	MotorData();
 	MotorData(const MotorData& data);
 	MotorData(const double magnitude, const double direction);
+	MotorData(const double magnitude, const double direction, const int weight);
 	// Setter/Getter
 	double getMagnitude() const;
 	double getDirection() const;
+	int getWeight() const;
 	MotorData& setDirection(double direction);
 	MotorData& setMagnitude(double magnitude);
+	MotorData& setWeight(int weight);
 	// Operator overloading
 	MotorData& operator= (const MotorData& data);
 	MotorData operator+ (const MotorData& data);
 	// Other methods
 	MotorData& optimizeDirection();
+	MotorData& convertToTurn(double currentDirection);
 
 private:
 	double mMagnitude;
 	double mDirection;
+	int mWeight;
 };
 
 class RobotBehavior {
@@ -64,6 +69,17 @@ public:
 	MotorData avoidRobot(RobotPosition myPosition, const RobotList &robotList);
 
 private:
+	static constexpr double MAX_MOTOR_SPEED = 0.3;
+	static constexpr double AVOID_SPEED = 0.1;
+
+	static constexpr double DISPERSE_WEIGHT = 2;
+	static constexpr double AGGREGATE_WEIGHT = 2;
+	static constexpr double AVOID_WEIGHT = 5;
+
+	static constexpr double SMOOTH_TURN_ANGLE = 20;
+	static constexpr double AVOID_DISTANCE = 0.5;
+	static constexpr double AVOID_ROBOT_SIZE = 0.3;
+
 	RobotPosition getCentroid(const RobotList &robotList);
 	double getNearestRobotDistance(const RobotList &robotList, const RobotPosition myPosition);
 };

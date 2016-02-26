@@ -5,7 +5,7 @@ LDFLAGS = $(shell pkg-config --libs playerc++)
 SRC = source/
 BIN = build/
 
-PROG = args behavior RobotMessage RobotSocketConnection RobotBehavior
+PROG = args RobotCommunication SocketConnection RobotBehavior
 TARGET = swarm
 
 BINS = $(addsuffix .o, $(addprefix $(BIN), $(basename $(PROG))))

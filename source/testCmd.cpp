@@ -1,9 +1,8 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "behavior.h"
-#include "RobotMessage.h"
-#include "RobotSocketConnection.h"
+#include "RobotCommunication.h"
+#include "SocketConnection.h"
 
 int main(int argc, char ** argv) {
   std::string destAddress = argv[1];             // First arg:  destination address
@@ -11,10 +10,11 @@ int main(int argc, char ** argv) {
   int cmd = atoi(argv[3]);               // Third arg:  commandID
 
   try {
-    RobotSocket sendSocket;
+    RobotNetwork::Socket sendSocket;
+    RobotCommunication::Communication robotCommunication;
     sendSocket.createSend();
-    sendCommand(sendSocket, destAddress, destPort, 1, cmd);
-  } catch (RobotSocketException &e) {
+    robotCommunication.sendCommand(sendSocket, destAddress, destPort, 1, cmd);
+  } catch (RobotNetwork::SocketException &e) {
     std::cerr << e.what() << std::endl;
     exit(1);
   }
