@@ -5,7 +5,7 @@ LDFLAGS = $(shell pkg-config --libs playerc++)
 SRC = source/
 BIN = build/
 
-PROG = args behavior InputControl RobotMessage RobotSocketConnection RobotTimer
+PROG = args behavior RobotMessage RobotSocketConnection
 TARGET = swarm
 
 BINS = $(addsuffix .o, $(addprefix $(BIN), $(basename $(PROG))))
@@ -22,13 +22,7 @@ $(BIN):
 	mkdir -p $(BIN)
 
 # build test codes
-test: $(BIN) $(BINS) testMessageReceive testMessageSend testCmd
-
-testMessageReceive: $(BINS) $(BIN)testMessageReceive.o
-	$(CC) $(BINS) $(BIN)testMessageReceive.o -o $(BIN)testMessageReceive $(LDFLAGS)
-	
-testMessageSend: $(BINS) $(BIN)testMessageSend.o
-	$(CC) $(BINS) $(BIN)testMessageSend.o -o $(BIN)testMessageSend $(LDFLAGS)
+test: $(BIN) $(BINS) testCmd
 
 testCmd: $(BINS) $(BIN)testCmd.o
 	$(CC) $(BINS) $(BIN)testCmd.o -o $(BIN)testCmd $(LDFLAGS)
