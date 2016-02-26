@@ -5,6 +5,11 @@
 make all
 ```
 
+### How to start the Player/Stage?
+```
+player player/multi.cfg
+```
+
 ### How to run the robots?
 ```
 sh run_disperse.sh (for dispersion)
