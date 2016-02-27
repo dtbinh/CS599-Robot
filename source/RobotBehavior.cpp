@@ -1,7 +1,6 @@
 #include <cmath>
 #include <iostream>
 #include "RobotBehavior.h"
-
 /*
 * Implementation of MotorData
 */
@@ -46,20 +45,6 @@ MotorData MotorData::operator+ (const MotorData& data) {
   int totalWeight = this->getWeight() + data.getWeight();
   double magnitude = (this->getMagnitude() * this->getWeight() / totalWeight) + (data.getMagnitude() * data.getWeight() / totalWeight);
   double direction = (this->getDirection() * this->getWeight() / totalWeight) + (data.getDirection() * data.getWeight() / totalWeight);
-	// double myX = this->mMagnitude * cos(this->mDirection);
-	// double myY = this->mMagnitude * sin(this->mDirection);
-	// double x = data.getMagnitude() * cos(data.getDirection());
-	// double y = data.getMagnitude() * sin(data.getDirection());
-	// double newX = x + myX;
-	// double newY = y + myY;
-	// double direction = (newX == 0)? 0: atan(newY / newX);
-	// direction = (newX < 0)? (PI + direction): fmod((PI * 2 + direction), (PI * 2)); // Convert to [0, 2*PI]
-	// double magnitude = sqrt(newX * newX + newY * newY);
-
-  // DEBUG
-  // std::cout << "p1(" << (this->mMagnitude) << ", " << (this->mDirection * 180 / PI) << ") + ";
-  // std::cout << "p2(" << (data.getMagnitude()) << ", " << (data.getDirection() * 180 / PI) << ") = ";
-  // std::cout << "(" << magnitude << ", " << (direction * 180 / PI) << ")" << std::endl;
 
 	return MotorData(magnitude, direction, totalWeight);
 }
@@ -103,7 +88,7 @@ MotorData RobotBehavior::disperse(RobotPosition myPosition, const RobotList &rob
     motorData.setDirection(direction);
     motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    motorData.setMagnitude(MAX_MOTOR_SPEED);
+    motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
   }
 
 	return motorData;
@@ -127,10 +112,7 @@ MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &ro
     motorData.setDirection(direction);
     motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    motorData.setMagnitude(MAX_MOTOR_SPEED);
-    // if (fabs(motorData.getDirection()) < (180 / PI * SMOOTH_TURN_ANGLE)) { // small angle turn: go and turn
-    // 	motorData.setMagnitude(MAX_AGGREGATE_MAGNITUDE);
-    // }
+    motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
   }
 
     return motorData;
@@ -139,8 +121,8 @@ MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &ro
 MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &robotList) {
   RobotPosition nearestRobotToAvoid;
   double smallestDistance = AVOID_DISTANCE + 1;
-  double directionToRobotAvoid, lowBoundDirectionAvoid, upBoundDirectionAvoid;
 
+  // Iterate all robots in sense range, find out the nearest one to the front/side of me
   for (RobotConstIterator it = robotList.begin(); it != robotList.end(); it ++){
     RobotPosition robotPosition = it->second;
     double distanceToRobot = myPosition.getDistanceTo(robotPosition);
@@ -148,34 +130,33 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
     if (distanceToRobot > AVOID_DISTANCE)
       continue;
 
-    double directionToRobot = myPosition.getDirectionTo(robotPosition);
-    double halfAngleToAvoid = atan(AVOID_ROBOT_SIZE / 2 / distanceToRobot);
-    double lowBoundDirection = directionToRobot - halfAngleToAvoid;
-    double upBoundDirection = directionToRobot + halfAngleToAvoid;
-    if (myPosition.getYaw() >= lowBoundDirection && myPosition.getYaw() <= upBoundDirection) {
-      if (distanceToRobot < smallestDistance) {
+    if (distanceToRobot < smallestDistance) {
+      double directionToRobot = myPosition.getDirectionTo(robotPosition) - fmod(myPosition.getYaw() + 2 * PI, 2 * PI);
+      if (directionToRobot <= (PI / 2) || directionToRobot >= (3 * PI / 2)) {
+        nearestRobotToAvoid = robotPosition;
         smallestDistance = distanceToRobot;
-        directionToRobotAvoid = directionToRobot;
-        lowBoundDirectionAvoid = lowBoundDirection;
-        upBoundDirectionAvoid = upBoundDirection;
       }
     }
   }
 
   MotorData motorData(0, 0, 0);
   if (smallestDistance < AVOID_DISTANCE) {
-    if (myPosition.getYaw() <= directionToRobotAvoid) {
+    double directionToRobotAvoid = myPosition.getDirectionTo(nearestRobotToAvoid) - fmod(myPosition.getYaw() + 2 * PI, 2 * PI);
+    if (directionToRobotAvoid >= 0 && directionToRobotAvoid <= (PI / 2)) {
       // Robot is in my left, turn right
-      motorData.setDirection(lowBoundDirectionAvoid);
-    } else {
+      motorData.setDirection(directionToRobotAvoid - (PI / 2));
+      motorData.optimizeDirection();
+      motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      motorData.setWeight(AVOID_WEIGHT);
+    } else if (directionToRobotAvoid >= -(PI / 2) && directionToRobotAvoid <= 0) {
       // Robot is in my right, turn left
-      motorData.setDirection(upBoundDirectionAvoid);
+      motorData.setDirection(directionToRobotAvoid + (PI / 2));
+      motorData.optimizeDirection();
+      motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      motorData.setWeight(AVOID_WEIGHT);
     }
-    motorData.setMagnitude(AVOID_SPEED);
-    motorData.convertToTurn(myPosition.getYaw());
-    motorData.optimizeDirection();
-    motorData.setWeight(AVOID_WEIGHT);
   }
+
 	return motorData;
 }
 
@@ -258,11 +239,19 @@ double RobotPosition::getDirectionTo(const RobotPosition robotPosition) const {
     double targetX = robotPosition.getX() - this->getX();
     double targetY = robotPosition.getY() - this->getY();
 
-    double direction = atan(targetY / targetX);
-    if (targetX < 0) // transform the coordination from C to Player
-      direction = PI + direction;
-    else
-      direction = fmod((2 * PI + direction), (2 * PI));
+    if (targetX == 0 && targetY > 0) {
+      return PI / 2;
+    } else if (targetX == 0 && targetY < 0) {
+      return 3 * PI / 2;
+    } else if (targetX == 0 && targetY == 0) {
+      return 0;
+    } else {
+      double direction = atan(targetY / targetX);
+      if (targetX < 0) // transform the coordination from C to Player
+        direction = PI + direction;
+      else
+        direction = fmod((2 * PI + direction), (2 * PI));
 
-    return direction;
+      return direction;
+    }
 }

@@ -34,6 +34,9 @@ int main(int argc, char **argv) {
       // Get current position
       RobotPosition myPosition(pp.GetXPos(), pp.GetYPos(), pp.GetYaw());
 
+      // Broadcast my position
+      robotCommunication.sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myPosition.getX(), myPosition.getY());
+
       // Listen to position report, record position of other robots
       RobotCommunication::Message message;
       while (robotCommunication.listenMessage(listenSocket, message)) { // Message Loop
@@ -46,7 +49,7 @@ int main(int argc, char **argv) {
           } else { // Delete
             robotList.erase(message.getSenderID());
           }
-        }
+        } 
 
         // Process exit command
         if (robotCommunication.waitForCommand(message, RobotCommunication::CMD_EXIT)) {
@@ -54,8 +57,6 @@ int main(int argc, char **argv) {
         }
       }
 
-      // Broadcast my position
-      robotCommunication.sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myPosition.getX(), myPosition.getY());
 
       // Behaviors go here!
       RobotBehavior robotBehavior;

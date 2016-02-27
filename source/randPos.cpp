@@ -11,10 +11,10 @@ typedef struct Position {
 } Position;
 
 void randomPosition(double startAngle, double endAngle, double radius, Position &pos) {
-  double randAngle = fmod(rand(),((endAngle - startAngle) + startAngle));
-  double randLength = fmod(rand(), radius);
-  pos.x = sin(randAngle) * randLength;
-  pos.y = cos(randAngle) * randLength;
+  double randAngle = fmod(rand(),(endAngle - startAngle)) + startAngle;
+  double randLength = fmod(rand(), radius - 0.8) + 0.5;
+  pos.x = cos(randAngle) * randLength;
+  pos.y = sin(randAngle) * randLength;
   pos.yaw = rand() % 360;
 }
 

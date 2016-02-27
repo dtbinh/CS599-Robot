@@ -74,10 +74,9 @@ private:
 
 	static constexpr double DISPERSE_WEIGHT = 2;
 	static constexpr double AGGREGATE_WEIGHT = 2;
-	static constexpr double AVOID_WEIGHT = 5;
+	static constexpr double AVOID_WEIGHT = 100;
 
-	static constexpr double SMOOTH_TURN_ANGLE = 20;
-	static constexpr double AVOID_DISTANCE = 0.5;
+	static constexpr double AVOID_DISTANCE = 0.8;
 	static constexpr double AVOID_ROBOT_SIZE = 0.3;
 
 	RobotPosition getCentroid(const RobotList &robotList);

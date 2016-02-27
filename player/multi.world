@@ -9,7 +9,7 @@ include "map.inc"
 
 window
 ( 
-  size [ 800.000 800.000 ] 
+  size [ 600.000 600.000 ] 
   center [0.000 0.000] 
   scale 40 # pixels per meter
 
