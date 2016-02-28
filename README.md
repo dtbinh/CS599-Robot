@@ -22,3 +22,4 @@ Note: robots run as background processes
 ./stop.sh
 ```
 Note: robots are listening to broadcasting messages, once hear a STOP message they will exit
+
