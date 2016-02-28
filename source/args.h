@@ -4,7 +4,11 @@
 #include <libplayerc++/playerc++.h>
 #include <string>
 
-#define DEFAULT_BROADCAST_NETMASK "127.255.255.255"
+#ifdef __APPLE__
+	#define DEFAULT_BROADCAST_NETMASK "192.168.0.255"
+#else
+	#define DEFAULT_BROADCAST_NETMASK "127.255.255.255"
+#endif
 #define DEFAULT_BROADCAST_PORT 9090
 #define DEFAULT_SENSE_DISTANCE 140
 #define RUN_TYPE_AGGREGATION 'a'

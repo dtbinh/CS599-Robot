@@ -23,7 +23,7 @@ bool checkSetting(RobotSetting &setting)
 int parse_args(int argc, char** argv, RobotSetting &setting)
 {
   // set the flags
-  const char* optflags = "h:p:B:P:t:d:s:";
+  const char* optflags = "?h:p:B:P:t:d:s:";
   int ch;
 
   // use getopt to parse the flags
@@ -73,6 +73,11 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
         setting.distance = atof(optarg);
         break;
       }
+      case '?': // print help
+      {
+        print_usage(argc, argv);
+        exit(0);
+      }
       default:  // unknown
       {
         print_usage(argc, argv);
@@ -109,6 +114,7 @@ void print_usage(int argc, char** argv)
   using namespace std;
   cerr << "USAGE:  " << *argv << " [options]" << endl << endl;
   cerr << "Where [options] can be:" << endl;
+  cerr << "  -?             : show help" << endl;
   cerr << "  -h <hostname>  : hostname of Player (default: " << PlayerCc::PLAYER_HOSTNAME << ")" << endl;
   cerr << "  -p <port>      : port of Player (default: " << PlayerCc::PLAYER_PORTNUM << ")" << endl;
   cerr << "  -B <ip>        : broadcast address for inter-robot communication (default: " DEFAULT_BROADCAST_NETMASK<< ")" << endl;
