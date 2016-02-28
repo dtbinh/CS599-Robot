@@ -1,2 +1,2 @@
-rm robots.inc
-ln -s robots_$1.inc robots.inc
+
+sed -i "" "s/robots_[0-9]*.inc/robots_${1}.inc/g" multi.world

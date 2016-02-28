@@ -52,5 +52,5 @@ define myrobot position
   )
 )
 
-include "robots.inc"
+include "robots_1.inc"
 
