@@ -77,7 +77,6 @@ private:
 	static constexpr double AVOID_WEIGHT = 100;
 
 	static constexpr double AVOID_DISTANCE = 0.8;
-	static constexpr double AVOID_ROBOT_SIZE = 0.3;
 
 	RobotPosition getCentroid(const RobotList &robotList);
 	double getNearestRobotDistance(const RobotList &robotList, const RobotPosition myPosition);

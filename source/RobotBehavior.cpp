@@ -88,7 +88,8 @@ MotorData RobotBehavior::disperse(RobotPosition myPosition, const RobotList &rob
     motorData.setDirection(direction);
     motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
+    // motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
+    motorData.setMagnitude(MAX_MOTOR_SPEED);
   }
 
 	return motorData;
@@ -112,7 +113,8 @@ MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &ro
     motorData.setDirection(direction);
     motorData.convertToTurn(myPosition.getYaw());
     motorData.optimizeDirection();
-    motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
+    // motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
+    motorData.setMagnitude(MAX_MOTOR_SPEED);
   }
 
     return motorData;
@@ -142,17 +144,22 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
   MotorData motorData(0, 0, 0);
   if (smallestDistance < AVOID_DISTANCE) {
     double directionToRobotAvoid = myPosition.getDirectionTo(nearestRobotToAvoid) - fmod(myPosition.getYaw() + 2 * PI, 2 * PI);
+    double extraAngle = 5 * PI / 190;
     if (directionToRobotAvoid >= 0 && directionToRobotAvoid <= (PI / 2)) {
       // Robot is in my left, turn right
-      motorData.setDirection(directionToRobotAvoid - (PI / 2));
+      // motorData.setDirection(directionToRobotAvoid - (PI / 2) - extraAngle);
+      motorData.setDirection( - (PI / 2));
       motorData.optimizeDirection();
-      motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      // motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      motorData.setMagnitude(AVOID_SPEED);
       motorData.setWeight(AVOID_WEIGHT);
     } else if (directionToRobotAvoid >= -(PI / 2) && directionToRobotAvoid <= 0) {
       // Robot is in my right, turn left
-      motorData.setDirection(directionToRobotAvoid + (PI / 2));
+      // motorData.setDirection(directionToRobotAvoid + (PI / 2) + extraAngle);
+      motorData.setDirection(PI / 2);
       motorData.optimizeDirection();
-      motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      // motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
+      motorData.setMagnitude(AVOID_SPEED);
       motorData.setWeight(AVOID_WEIGHT);
     }
   }
