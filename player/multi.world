@@ -4,20 +4,21 @@ include "map.inc"
 
 window
 ( 
-  size [ 600.000 600.000 ] 
+  size [ 1400.000 600.000 ] 
   center [0.000 0.000] 
-  scale 50 # pixels per meter
+  scale 30 # pixels per meter
 
   show_data 0
+  show_clock 0
 )
 
 floorplan
 ( 
-  #bitmap "bitmaps/cave.png" 
+  bitmap "table.png" 
   map_resolution 0.02
-  #size [40.000 40.000 0.800] 
+  size [40.000 17.000 0.01] 
   name "cave"
-  color "white"
+  color "gray"
   gui_grid 0
   gui_outline 0
 )
@@ -30,7 +31,7 @@ define myrobot position
   gui_nose 1
   ranger_return 1
 
-  size [0.3 0.3 0.1]
+  size [0.4 0.3 0.1]
   # simplified Body shape:
   block(
     points 8
@@ -47,5 +48,5 @@ define myrobot position
   )
 )
 
-include "robots_1.inc"
+include "robots.inc"
 

@@ -1,4 +1,4 @@
-# CS599-Robot-P3
+# CS599-Robot-P4
 
 ### How to compile?
 ```
@@ -12,14 +12,11 @@ player player/multi.cfg
 
 ### How to run the robots?
 ```
-./run_disperse.sh (for dispersion)
-./run_aggregate.sh (for aggregation)
+TBD
 ```
-Note: robots run as background processes
 
 ### How to stop the robots?
 ```
-./stop.sh
+TBD
 ```
-Note: robots are listening to broadcasting messages, once hear a STOP message they will exit
 

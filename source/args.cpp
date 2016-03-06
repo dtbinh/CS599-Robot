@@ -11,6 +11,17 @@
 
 #include "args.h"
 
+#ifdef __APPLE__
+  const std::string DEFAULT_BROADCAST_NETMASK = "192.168.0.255";
+#else
+  const std::string DEFAULT_BROADCAST_NETMASK = "127.255.255.255";
+#endif
+const int DEFAULT_BROADCAST_PORT = 9090;
+const double DEFAULT_SENSE_DISTANCE = 140;
+const char RUN_TYPE_AGGREGATION = 'a';
+const char RUN_TYPE_DISPERSION = 'd';
+const double INCHE_METER_FACTOR = 0.0254;
+
 bool checkSetting(RobotSetting &setting)
 {
   if (setting.senseRange < setting.distance)
@@ -52,27 +63,27 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
         setting.broadcastPort = atoi(optarg);
         break;
       }
-      case 't': // run type(a:aggression, d:dispersion)
-      {
-        if (optarg[0] == RUN_TYPE_AGGREGATION || optarg[0] == RUN_TYPE_DISPERSION)
-        {
-          setting.runType = optarg[0];
-        }
-        else
-        { // unknow type
-        }
-        break;
-      }
-      case 's': // sense range
-      {
-        setting.senseRange = atof(optarg);
-        break;
-      }
-      case 'd': // distance
-      {
-        setting.distance = atof(optarg);
-        break;
-      }
+      // case 't': // run type(a:aggression, d:dispersion)
+      // {
+      //   if (optarg[0] == RUN_TYPE_AGGREGATION || optarg[0] == RUN_TYPE_DISPERSION)
+      //   {
+      //     setting.runType = optarg[0];
+      //   }
+      //   else
+      //   { // unknow type
+      //   }
+      //   break;
+      // }
+      // case 's': // sense range
+      // {
+      //   setting.senseRange = atof(optarg);
+      //   break;
+      // }
+      // case 'd': // distance
+      // {
+      //   setting.distance = atof(optarg);
+      //   break;
+      // }
       case '?': // print help
       {
         print_usage(argc, argv);
@@ -93,8 +104,8 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
   }
 
   // Inches to meters
-  setting.senseRange *= INCHE_METER_FACTOR;
-  setting.distance *= INCHE_METER_FACTOR;
+  // setting.senseRange *= INCHE_METER_FACTOR;
+  // setting.distance *= INCHE_METER_FACTOR;
 
   // DEBUG
   std::cout << "Settings: (";
@@ -102,9 +113,10 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
   std::cout << "Player port = " << setting.robotPort << "; ";
   std::cout << "Broadcast address = " << setting.broadcastAddress << "; ";
   std::cout << "Listen port = " << setting.broadcastPort << "; ";
-  std::cout << "Run type = " << setting.runType << "; ";
-  std::cout << "Sense range = " << setting.senseRange << "; ";
-  std::cout << "Distance = " << setting.distance <<  "; )" << std::endl;
+  // std::cout << "Run type = " << setting.runType << "; ";
+  // std::cout << "Sense range = " << setting.senseRange << "; ";
+  // std::cout << "Distance = " << setting.distance <<  "; )" << std::endl;
+  std::cout << std::endl;
 
   return 0;
 } // end parse_args
@@ -117,12 +129,12 @@ void print_usage(int argc, char** argv)
   cerr << "  -?             : show help" << endl;
   cerr << "  -h <hostname>  : hostname of Player (default: " << PlayerCc::PLAYER_HOSTNAME << ")" << endl;
   cerr << "  -p <port>      : port of Player (default: " << PlayerCc::PLAYER_PORTNUM << ")" << endl;
-  cerr << "  -B <ip>        : broadcast address for inter-robot communication (default: " DEFAULT_BROADCAST_NETMASK<< ")" << endl;
+  cerr << "  -B <ip>        : broadcast address for inter-robot communication (default: " << DEFAULT_BROADCAST_NETMASK << ")" << endl;
   cerr << "  -P <port>      : listen port for inter-robot communication (default: " << DEFAULT_BROADCAST_PORT << ")" << endl;
-  cerr << "  -t [a,d]       : (Required) running type (a:aggregation, d:dispersion)" << endl;
-  cerr << "  -s <distance>  : sensory distance, in unit inches (default: " << DEFAULT_SENSE_DISTANCE << ")" << endl;
-  cerr << "  -d <distance>  : (Required) maximum inter-robot distance(aggregation) / minimum inter-robot distance(dispersion), in unit inches" << endl;
-  cerr << "Note: sensory distance(-s) should be larger than inter-robot distance(-d)" << endl;
+  // cerr << "  -t [a,d]       : (Required) running type (a:aggregation, d:dispersion)" << endl;
+  // cerr << "  -s <distance>  : sensory distance, in unit inches (default: " << DEFAULT_SENSE_DISTANCE << ")" << endl;
+  // cerr << "  -d <distance>  : (Required) maximum inter-robot distance(aggregation) / minimum inter-robot distance(dispersion), in unit inches" << endl;
+  // cerr << "Note: sensory distance(-s) should be larger than inter-robot distance(-d)" << endl;
 
 } // end print_usage
 
@@ -132,5 +144,5 @@ RobotSetting::RobotSetting()
   robotPort = PlayerCc::PLAYER_PORTNUM;
   broadcastAddress = std::string(DEFAULT_BROADCAST_NETMASK);
   broadcastPort = DEFAULT_BROADCAST_PORT;
-  senseRange = DEFAULT_SENSE_DISTANCE;
+  // senseRange = DEFAULT_SENSE_DISTANCE;
 }

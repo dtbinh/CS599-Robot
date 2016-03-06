@@ -7,6 +7,25 @@
 namespace RobotCommunication {
 
   // --------------------
+  // Constants definition
+  // --------------------
+  // const char MESSAGE_SEPERATOR = '!';
+  // const char FIELD_SEPERATOR = '$';
+  // const int FIELD_NUMBER = 10;
+
+  // const int CMD_START = 1;
+  // const int CMD_STOP = 0;
+  // const int CMD_RESUME = 2;
+  // const int CMD_EXIT = -1;
+
+  // const char MSG_TYPE_TASK = 'T';
+  // const char MSG_TYPE_COMMAND = 'C';
+  // const char MSG_TYPE_POSITION = 'P';
+  // const char MSG_TYPE_REGISTER = 'R';
+  // const char MSG_TYPE_REQUESTREGISTER = 'B';
+  // const char MSG_TYPE_UNKNOWN = 'U';
+
+  // --------------------
   // MessageField
   // --------------------
   MessageField::MessageField() {
@@ -65,6 +84,9 @@ namespace RobotCommunication {
   Message::Message(char messageType, int senderId): mType(messageType), mSenderID(senderId) { }
   Message::Message(int senderId, int command): mType(MSG_TYPE_COMMAND), mSenderID(senderId), mCommand(command) { }
   Message::Message(int senderId, double x, double y): mType(MSG_TYPE_POSITION), mSenderID(senderId), mX(x), mY(y) { }
+  Message::Message(int senderId, char formationType, double targetX, double targetY):
+    mType(MSG_TYPE_TASK), mSenderID(senderId), mFormationType(formationType), mX(targetX), mY(targetY) { }
+
 
   std::string Message::toString() {
     char msgBuffer[60];
@@ -77,12 +99,12 @@ namespace RobotCommunication {
         sprintf(msgBuffer, "%c$%d$%.2f$%.2f!", MSG_TYPE_POSITION, mSenderID, mX, mY);
         break;
 
-      case MSG_TYPE_REGISTER:
-        sprintf(msgBuffer, "%c$%d!", MSG_TYPE_REGISTER, mSenderID);
+      case MSG_TYPE_TASK:
+        sprintf(msgBuffer, "%c$%d$%c$%.2f$%.2f!", MSG_TYPE_TASK, mSenderID, mFormationType, mX, mY);
         break;
 
-      case MSG_TYPE_REQUESTREGISTER:
-        sprintf(msgBuffer, "%c$%d!", MSG_TYPE_REQUESTREGISTER, mSenderID);
+      case MSG_TYPE_TASK_DONE:
+        sprintf(msgBuffer, "%c$%d!", MSG_TYPE_TASK_DONE, mSenderID);
         break;
 
       default:
@@ -118,9 +140,16 @@ namespace RobotCommunication {
         mY = atof(msgField[3].c_str());      
         break;
 
-      case MSG_TYPE_REGISTER:
-      case MSG_TYPE_REQUESTREGISTER:
-        mType = msgType;
+      case MSG_TYPE_TASK:
+        mType = MSG_TYPE_TASK;
+        mSenderID = atoi(msgField[1].c_str());
+        mFormationType = msgField[2][0];
+        mX = atof(msgField[3].c_str());
+        mY = atof(msgField[4].c_str());      
+        break;
+
+      case MSG_TYPE_TASK_DONE:
+        mType = MSG_TYPE_TASK_DONE;
         mSenderID = atoi(msgField[1].c_str());
         break;
 
@@ -152,6 +181,9 @@ namespace RobotCommunication {
     return mY;
   }
 
+  double Message::getFormationType() {
+    return mFormationType;
+  }
   /*
   ** Implementation of Communication
   */
@@ -180,6 +212,16 @@ namespace RobotCommunication {
   void Communication::sendMessagePosition(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, double x, double y)
   {
     Message message(robotID, x, y);
+    socket.send(message.toString(), remoteAddress, listenPort);
+  }
+
+  void Communication::sendMessageTask(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID, char formationType, double targetX, double targetY) {
+    Message message(robotID, formationType, targetX, targetY);
+    socket.send(message.toString(), remoteAddress, listenPort);
+  }
+
+  void Communication::sendMessageTaskDone(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID) {
+    Message message(MSG_TYPE_TASK_DONE, robotID);
     socket.send(message.toString(), remoteAddress, listenPort);
   }
 

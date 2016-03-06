@@ -1,6 +1,0 @@
-myrobot( color "red" name "r1" pose [1.099 0.035 0 227.000])
-myrobot( color "NavyBlue" name "r2" pose [0.611 1.115 0 85.000])
-myrobot( color "green" name "r3" pose [-1.530 1.781 0 135.000])
-myrobot( color "cyan" name "r4" pose [-1.684 -0.437 0 104.000])
-myrobot( color "yellow" name "r5" pose [-0.012 -1.392 0 24.000])
-myrobot( color "magenta" name "r6" pose [0.536 -0.738 0 66.000])

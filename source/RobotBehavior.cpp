@@ -1,6 +1,11 @@
 #include <cmath>
 #include <iostream>
 #include "RobotBehavior.h"
+
+#define DEBUG_ENABLED
+
+const double PI = 3.1415926535;
+
 /*
 * Implementation of MotorData
 */
@@ -70,56 +75,6 @@ MotorData& MotorData::convertToTurn(double currentDirection) {
 */
 RobotBehavior::RobotBehavior() {}
 
-MotorData RobotBehavior::disperse(RobotPosition myPosition, const RobotList &robotList, double rangeLimit) {
-
-	MotorData motorData(0, 0, DISPERSE_WEIGHT);
-  double nearestDistance = this->getNearestRobotDistance(robotList, myPosition);
-  if (nearestDistance > 0 && nearestDistance < rangeLimit)
-  { // at least one robot near me
-
-    // I should go away from the centroid
-    // Find out the centeroid position
-    RobotPosition centroidPosition = this->getCentroid(robotList);
-
-    // Find out the target direction
-    double direction = centroidPosition.getDirectionTo(myPosition);
-
-    // Determine speed & turn rate
-    motorData.setDirection(direction);
-    motorData.convertToTurn(myPosition.getYaw());
-    motorData.optimizeDirection();
-    // motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
-    motorData.setMagnitude(MAX_MOTOR_SPEED);
-  }
-
-	return motorData;
-}
-
-MotorData RobotBehavior::aggregate(RobotPosition myPosition, const RobotList &robotList, double rangeLimit) {
-
-	MotorData motorData(0, 0, AGGREGATE_WEIGHT);
-  double nearestDistance = this->getNearestRobotDistance(robotList, myPosition);
-  if (nearestDistance > rangeLimit)
-  { // the nearest robot is out of range
-
-    // I should go toward the centroid
-    // Find out the centeroid position
-    RobotPosition centroidPosition = this->getCentroid(robotList);
-
-    // Find out the target direction
-    double direction = myPosition.getDirectionTo(centroidPosition);
-
-    // Determine speed & turn rate
-    motorData.setDirection(direction);
-    motorData.convertToTurn(myPosition.getYaw());
-    motorData.optimizeDirection();
-    // motorData.setMagnitude(MAX_MOTOR_SPEED * (1 - fabs(motorData.getDirection()) / PI));
-    motorData.setMagnitude(MAX_MOTOR_SPEED);
-  }
-
-    return motorData;
-}
-
 MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &robotList) {
   RobotPosition nearestRobotToAvoid;
   double smallestDistance = AVOID_DISTANCE + 1;
@@ -167,34 +122,82 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
 	return motorData;
 }
 
-RobotPosition RobotBehavior::getCentroid(const RobotList &robotList) {
-  double centroidX = 0;
-  double centroidY = 0;
-  for (RobotConstIterator it = robotList.begin(); it != robotList.end(); it ++) {
-    RobotPosition position = it->second;
-    centroidX += position.getX();
-    centroidY += position.getY();
-  }
+/*
+** Implementation of RobotBehaviorLeader
+*/
+RobotBehaviorLeader::RobotBehaviorLeader(): RobotBehavior() { }
 
-  centroidX = centroidX / robotList.size();
-  centroidY = centroidY / robotList.size();
-  return RobotPosition(centroidX, centroidY, 0);
+void RobotBehaviorLeader::setTarget(double x, double y) {
+  mTargetX = x;
+  mTargetY = y;
+
+  #ifdef DEBUG_ENABLED
+    std::cout << "WayPoint(" << x << ", " << y << ")" << std::endl;
+  #endif
 }
 
-double RobotBehavior::getNearestRobotDistance(const RobotList &robotList, const RobotPosition myPosition) {
-  double result = -1;
-  for (RobotConstIterator it = robotList.begin(); it != robotList.end(); it ++)
-  {
-  	RobotPosition robotPosition= it->second;
-    double distance = robotPosition.getDistanceTo(myPosition);
+MotorData RobotBehaviorLeader::gotoTarget(RobotPosition& myPosition) {
+  MotorData motorData(0, 0, TASK_WEIGHT);
 
-    if (result < 0 || distance < result)
-    {
-      result = distance;
-    }
-  }
+  // Turn rate
+  RobotPosition targetPosition(mTargetX, mTargetY, 0);
+  motorData.setDirection(myPosition.getDirectionTo(targetPosition) - myPosition.getYaw());
+  motorData.optimizeDirection();
 
-  return result;
+  // Speed
+  double distance = myPosition.getDistanceTo(targetPosition);
+  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): MAX_MOTOR_SPEED;
+  if (distance < FINISH_DISTANCE)
+    magnitude = 0;
+  motorData.setMagnitude(magnitude);
+
+  #ifdef DEBUG_ENABLED
+    std::cout << "Distance(" << distance << ") ";
+    std::cout << "MotorData(" << motorData.getMagnitude() << ", " << motorData.getDirection() * 180 / PI << ")";
+    std::cout << std::endl;
+  #endif
+
+  return motorData;
+}
+
+/*
+** Implementation of RobotBehaviorFollower
+*/
+RobotBehaviorFollower::RobotBehaviorFollower(): RobotBehavior() { }
+
+void RobotBehaviorFollower::setCoordination(RobotFormation::Coordination coordination) {
+  mCoordination = coordination;
+  #ifdef DEBUG_ENABLED
+    std::cout << "TeamPose(" << coordination.x << ", " << coordination.y << ")" << std::endl;
+  #endif
+}
+
+double RobotBehaviorFollower::taskEstimate(RobotPosition myPosition, RobotPosition targetPosition) {
+  return myPosition.getDistanceTo(targetPosition);
+}
+
+MotorData RobotBehaviorFollower::follow(RobotPosition& myPosition, RobotPosition& leaderPosition) {
+  MotorData motorData(0, 0, TASK_WEIGHT);
+
+  // Turn rate
+  RobotPosition nextPosition(leaderPosition.getX() + mCoordination.x, leaderPosition.getYaw() + mCoordination.y, 0);
+  motorData.setDirection(myPosition.getDirectionTo(nextPosition) - myPosition.getYaw());
+  motorData.optimizeDirection();
+
+  // Speed
+  double distance = myPosition.getDistanceTo(nextPosition);
+  double magnitude = MAX_MOTOR_SPEED;
+  if (distance < FINISH_DISTANCE)
+    magnitude = 0;
+  motorData.setMagnitude(magnitude);
+
+  #ifdef DEBUG_ENABLED
+    std::cout << "Distance(" << distance << ") ";
+    std::cout << "MotorData(" << motorData.getMagnitude() << ", " << motorData.getDirection() * 180 / PI << ")";
+    std::cout << std::endl;
+  #endif
+
+  return motorData;
 }
 
 /*

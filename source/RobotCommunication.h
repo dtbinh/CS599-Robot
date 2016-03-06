@@ -16,10 +16,10 @@ namespace RobotCommunication {
   const int CMD_RESUME = 2;
   const int CMD_EXIT = -1;
 
+  const char MSG_TYPE_TASK = 'T';
   const char MSG_TYPE_COMMAND = 'C';
   const char MSG_TYPE_POSITION = 'P';
-  const char MSG_TYPE_REGISTER = 'R';
-  const char MSG_TYPE_REQUESTREGISTER = 'B';
+  const char MSG_TYPE_TASK_DONE = 'A';
   const char MSG_TYPE_UNKNOWN = 'U';
 
   class MessageField {
@@ -41,6 +41,8 @@ namespace RobotCommunication {
     Message(char messageType, int senderId);
     Message(int senderId, int command);
     Message(int senderId, double x, double y);
+    Message(int senderId, char formationType, double targetX, double targetY);
+
     std::string toString();
     bool parse(char * message);
     char getType();
@@ -48,6 +50,7 @@ namespace RobotCommunication {
     int getSenderID();
     double getX();
     double getY();
+    double getFormationType();
 
   private:
     char mType;
@@ -55,12 +58,15 @@ namespace RobotCommunication {
     int mCommand;
     double mX;
     double mY;
+    char mFormationType;
   };
 
   class Communication {
   public:
     void sendCommand(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, int command);
     void sendMessagePosition(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, double x, double y);
+    void sendMessageTask(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID, char formationType, double targetX, double targetY);
+    void sendMessageTaskDone(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID);
     bool listenMessage(RobotNetwork::Socket &socket, RobotCommunication::Message& message);
     bool waitForCommand(Message &message, char expectedCommand);
     bool waitForMessage(Message &message, char expectedType);

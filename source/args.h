@@ -4,16 +4,12 @@
 #include <libplayerc++/playerc++.h>
 #include <string>
 
-#ifdef __APPLE__
-	#define DEFAULT_BROADCAST_NETMASK "192.168.0.255"
-#else
-	#define DEFAULT_BROADCAST_NETMASK "127.255.255.255"
-#endif
-#define DEFAULT_BROADCAST_PORT 9090
-#define DEFAULT_SENSE_DISTANCE 140
-#define RUN_TYPE_AGGREGATION 'a'
-#define RUN_TYPE_DISPERSION 'd'
-#define INCHE_METER_FACTOR 0.0254
+extern const std::string DEFAULT_BROADCAST_NETMASK;
+extern const int DEFAULT_BROADCAST_PORT;
+extern const double DEFAULT_SENSE_DISTANCE;
+extern const char RUN_TYPE_AGGREGATION;
+extern const char RUN_TYPE_DISPERSION;
+extern const double INCHE_METER_FACTOR;
 
 class RobotSetting
 {

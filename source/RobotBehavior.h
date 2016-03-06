@@ -2,8 +2,9 @@
 #define __ROBOT_BEHAVIOR_H__
 
 #include <map>
+#include "RobotFormation.h"
 
-#define PI 3.1415926535
+extern const double PI;
 
 class RobotPosition {
 public:
@@ -64,22 +65,40 @@ private:
 class RobotBehavior {
 public:
 	RobotBehavior();
-	MotorData disperse(RobotPosition myPosition, const RobotList &robotList, double rangeLimit);
-	MotorData aggregate(RobotPosition myPosition, const RobotList &robotList, double rangeLimit);
 	MotorData avoidRobot(RobotPosition myPosition, const RobotList &robotList);
 
-private:
-	static constexpr double MAX_MOTOR_SPEED = 0.3;
+protected:
+	static constexpr double MAX_MOTOR_SPEED = 0.5;
 	static constexpr double AVOID_SPEED = 0.1;
-
-	static constexpr double DISPERSE_WEIGHT = 2;
-	static constexpr double AGGREGATE_WEIGHT = 2;
 	static constexpr double AVOID_WEIGHT = 100;
-
 	static constexpr double AVOID_DISTANCE = 0.8;
+};
 
-	RobotPosition getCentroid(const RobotList &robotList);
-	double getNearestRobotDistance(const RobotList &robotList, const RobotPosition myPosition);
+class RobotBehaviorLeader: public RobotBehavior {
+public:
+	RobotBehaviorLeader();
+	void setTarget(double x, double y);
+	MotorData gotoTarget(RobotPosition& myPosition);
+
+private:
+	static constexpr double TASK_WEIGHT = 2;
+	static constexpr double NEAR_DISTANCE = 1;
+	static constexpr double FINISH_DISTANCE = 0.01;
+	double mTargetX;
+	double mTargetY;
+};
+
+class RobotBehaviorFollower: public RobotBehavior {
+public:
+	RobotBehaviorFollower();
+	void setCoordination(RobotFormation::Coordination coordination);
+	double taskEstimate(RobotPosition myPosition, RobotPosition targetPosition);
+	MotorData follow(RobotPosition& myPosition, RobotPosition& leaderPosition);
+
+private:
+	static constexpr double TASK_WEIGHT = 2;
+	static constexpr double FINISH_DISTANCE = 0.01;
+	RobotFormation::Coordination mCoordination;
 };
 
 #endif
