@@ -66,24 +66,28 @@ class RobotBehavior {
 public:
 	RobotBehavior();
 	MotorData avoidRobot(RobotPosition myPosition, const RobotList &robotList);
+	void setHasTask(bool hasTask);
+	bool hasTask();
 
 protected:
 	static constexpr double MAX_MOTOR_SPEED = 0.5;
+	static constexpr double MAX_TURN_RATE = 20; // in degree
 	static constexpr double AVOID_SPEED = 0.1;
-	static constexpr double AVOID_WEIGHT = 100;
-	static constexpr double AVOID_DISTANCE = 0.8;
+	static constexpr double AVOID_WEIGHT = 2000;
+	static constexpr double AVOID_DISTANCE = 0.5;
+	bool mHasTask;
 };
 
 class RobotBehaviorLeader: public RobotBehavior {
 public:
 	RobotBehaviorLeader();
-	void setTarget(double x, double y);
+	void assignTask(double x, double y);
 	MotorData gotoTarget(RobotPosition& myPosition);
 
 private:
-	static constexpr double TASK_WEIGHT = 2;
-	static constexpr double NEAR_DISTANCE = 1;
-	static constexpr double FINISH_DISTANCE = 0.01;
+	static constexpr double TASK_WEIGHT = 20;
+	static constexpr double NEAR_DISTANCE = 0.5;
+	static constexpr double FINISH_DISTANCE = 0.02;
 	double mTargetX;
 	double mTargetY;
 };
@@ -91,12 +95,13 @@ private:
 class RobotBehaviorFollower: public RobotBehavior {
 public:
 	RobotBehaviorFollower();
-	void setCoordination(RobotFormation::Coordination coordination);
+	void assignTask(RobotFormation::Coordination coordination);
 	double taskEstimate(RobotPosition myPosition, RobotPosition targetPosition);
 	MotorData follow(RobotPosition& myPosition, RobotPosition& leaderPosition);
 
 private:
-	static constexpr double TASK_WEIGHT = 2;
+	static constexpr double TASK_WEIGHT = 20;
+	static constexpr double NEAR_DISTANCE = 0.2;
 	static constexpr double FINISH_DISTANCE = 0.01;
 	RobotFormation::Coordination mCoordination;
 };

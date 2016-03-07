@@ -30,3 +30,7 @@ void RobotFormation::setDiamond() {
 RobotFormation::Coordination* RobotFormation::getShape() {
 	return mShape;
 }
+
+int RobotFormation::getLeaderIndex() {
+	return mLeaderIndex;
+}

@@ -63,14 +63,20 @@ namespace RobotCommunication {
 
   class Communication {
   public:
-    void sendCommand(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, int command);
-    void sendMessagePosition(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, double x, double y);
-    void sendMessageTask(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID, char formationType, double targetX, double targetY);
-    void sendMessageTaskDone(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID);
-    bool listenMessage(RobotNetwork::Socket &socket, RobotCommunication::Message& message);
+    Communication(std::string address, int port);
+    void sendCommand(int robotID, int command);
+    void sendMessagePosition(int robotID, double x, double y);
+    void sendMessageTask(int robotID, char formationType, double targetX, double targetY);
+    void sendMessageTaskDone(int robotID);
+    bool listenMessage(Message& message);
     bool waitForCommand(Message &message, char expectedCommand);
     bool waitForMessage(Message &message, char expectedType);
 
+  private:
+    std::string mAddress;
+    int mPort;
+    RobotNetwork::Socket mSocketListen;
+    RobotNetwork::Socket mSocketSend;
   };
 }
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include "RobotBehavior.h"
 
-#define DEBUG_ENABLED
+// #define DEBUG_ENABLED
 
 const double PI = 3.1415926535;
 
@@ -73,7 +73,15 @@ MotorData& MotorData::convertToTurn(double currentDirection) {
 /*
 * Implementation of RobotBehavior
 */
-RobotBehavior::RobotBehavior() {}
+RobotBehavior::RobotBehavior(): mHasTask(false) { }
+
+bool RobotBehavior::hasTask() {
+  return mHasTask;
+}
+
+void RobotBehavior::setHasTask(bool hasTask) {
+  mHasTask = hasTask;
+}
 
 MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &robotList) {
   RobotPosition nearestRobotToAvoid;
@@ -127,9 +135,10 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
 */
 RobotBehaviorLeader::RobotBehaviorLeader(): RobotBehavior() { }
 
-void RobotBehaviorLeader::setTarget(double x, double y) {
+void RobotBehaviorLeader::assignTask(double x, double y) {
   mTargetX = x;
   mTargetY = y;
+  setHasTask(true);
 
   #ifdef DEBUG_ENABLED
     std::cout << "WayPoint(" << x << ", " << y << ")" << std::endl;
@@ -138,18 +147,24 @@ void RobotBehaviorLeader::setTarget(double x, double y) {
 
 MotorData RobotBehaviorLeader::gotoTarget(RobotPosition& myPosition) {
   MotorData motorData(0, 0, TASK_WEIGHT);
+  if (!hasTask()) return motorData;
 
   // Turn rate
   RobotPosition targetPosition(mTargetX, mTargetY, 0);
-  motorData.setDirection(myPosition.getDirectionTo(targetPosition) - myPosition.getYaw());
-  motorData.optimizeDirection();
+  double direction = myPosition.getDirectionTo(targetPosition) - myPosition.getYaw();
 
   // Speed
   double distance = myPosition.getDistanceTo(targetPosition);
-  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): MAX_MOTOR_SPEED;
-  if (distance < FINISH_DISTANCE)
+  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): (MAX_MOTOR_SPEED);
+  magnitude *= 0.7;
+  if (distance < FINISH_DISTANCE) {
     magnitude = 0;
+    direction = 0;    
+  }
+
   motorData.setMagnitude(magnitude);
+  motorData.setDirection(direction);
+  motorData.optimizeDirection();
 
   #ifdef DEBUG_ENABLED
     std::cout << "Distance(" << distance << ") ";
@@ -165,8 +180,10 @@ MotorData RobotBehaviorLeader::gotoTarget(RobotPosition& myPosition) {
 */
 RobotBehaviorFollower::RobotBehaviorFollower(): RobotBehavior() { }
 
-void RobotBehaviorFollower::setCoordination(RobotFormation::Coordination coordination) {
+void RobotBehaviorFollower::assignTask(RobotFormation::Coordination coordination) {
   mCoordination = coordination;
+  setHasTask(true);
+
   #ifdef DEBUG_ENABLED
     std::cout << "TeamPose(" << coordination.x << ", " << coordination.y << ")" << std::endl;
   #endif
@@ -178,20 +195,45 @@ double RobotBehaviorFollower::taskEstimate(RobotPosition myPosition, RobotPositi
 
 MotorData RobotBehaviorFollower::follow(RobotPosition& myPosition, RobotPosition& leaderPosition) {
   MotorData motorData(0, 0, TASK_WEIGHT);
+  if (!hasTask()) return motorData;
+
+  RobotPosition nextPosition(leaderPosition.getX() + mCoordination.x, leaderPosition.getY() + mCoordination.y, 0);
+  bool isAheadOfTarget = (nextPosition.getX() < myPosition.getX());
 
   // Turn rate
-  RobotPosition nextPosition(leaderPosition.getX() + mCoordination.x, leaderPosition.getYaw() + mCoordination.y, 0);
-  motorData.setDirection(myPosition.getDirectionTo(nextPosition) - myPosition.getYaw());
-  motorData.optimizeDirection();
+  double direction = myPosition.getDirectionTo(nextPosition) - myPosition.getYaw();
+  if (isAheadOfTarget) {
+    direction = 0;
+  }
 
   // Speed
   double distance = myPosition.getDistanceTo(nextPosition);
-  double magnitude = MAX_MOTOR_SPEED;
-  if (distance < FINISH_DISTANCE)
-    magnitude = 0;
-  motorData.setMagnitude(magnitude);
+  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): MAX_MOTOR_SPEED;
+  // double magnitude = MAX_MOTOR_SPEED;
+  if (isAheadOfTarget) {
+    magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (1 - distance / NEAR_DISTANCE)): 0;
+  }
+  // if (distance < FINISH_DISTANCE) {
+  //   direction = 0;
+  //   magnitude = 0;
+  // }
 
+  motorData.setMagnitude(magnitude);
+  motorData.setDirection(direction);
+  motorData.optimizeDirection();
+
+  // smooth the direction
+  direction = motorData.getDirection();
+  double max_turn_rate = MAX_TURN_RATE * PI / 180;
+  if (std::fabs(direction) > max_turn_rate) {
+    direction = std::fabs(direction) / direction * max_turn_rate;
+    motorData.setDirection(direction); 
+  } 
+  
   #ifdef DEBUG_ENABLED
+    // std::cout << "LeaderPose(" << leaderPosition.getX() << ", " << leaderPosition.getY() << ") ";
+    // std::cout << "MyPose(" << myPosition.getX() << ", " << myPosition.getY() << ")";
+    std::cout << std::endl;
     std::cout << "Distance(" << distance << ") ";
     std::cout << "MotorData(" << motorData.getMagnitude() << ", " << motorData.getDirection() * 180 / PI << ")";
     std::cout << std::endl;

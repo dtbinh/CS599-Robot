@@ -187,11 +187,16 @@ namespace RobotCommunication {
   /*
   ** Implementation of Communication
   */
-  bool Communication::listenMessage(RobotNetwork::Socket &socket, RobotCommunication::Message& message)
+  Communication::Communication(std::string address, int port): mAddress(address), mPort(port) {
+    mSocketListen.createListen(mPort);
+    mSocketSend.createSend();
+  }
+
+  bool Communication::listenMessage(Message& message)
   {
     char recvBuffer[RobotNetwork::MAX_SOCKET_BUF];
 
-    int nBytes = socket.listen(recvBuffer, RobotNetwork::MAX_SOCKET_BUF);
+    int nBytes = mSocketListen.listen(recvBuffer, RobotNetwork::MAX_SOCKET_BUF);
     if (nBytes <= 0) {
       return false;
     }
@@ -203,26 +208,26 @@ namespace RobotCommunication {
     return true;
   }
 
-  void Communication::sendCommand(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, int command)
+  void Communication::sendCommand(int robotID, int command)
   {
     Message message(robotID, command);
-    socket.send(message.toString(), remoteAddress, listenPort);
+    mSocketSend.send(message.toString(), mAddress, mPort);
   }
 
-  void Communication::sendMessagePosition(RobotNetwork::Socket &socket, std::string remoteAddress, int listenPort, int robotID, double x, double y)
+  void Communication::sendMessagePosition(int robotID, double x, double y)
   {
     Message message(robotID, x, y);
-    socket.send(message.toString(), remoteAddress, listenPort);
+    mSocketSend.send(message.toString(), mAddress, mPort);
   }
 
-  void Communication::sendMessageTask(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID, char formationType, double targetX, double targetY) {
+  void Communication::sendMessageTask(int robotID, char formationType, double targetX, double targetY) {
     Message message(robotID, formationType, targetX, targetY);
-    socket.send(message.toString(), remoteAddress, listenPort);
+    mSocketSend.send(message.toString(), mAddress, mPort);
   }
 
-  void Communication::sendMessageTaskDone(RobotNetwork::Socket& socket, std::string remoteAddress, int listenPort, int robotID) {
+  void Communication::sendMessageTaskDone(int robotID) {
     Message message(MSG_TYPE_TASK_DONE, robotID);
-    socket.send(message.toString(), remoteAddress, listenPort);
+    mSocketSend.send(message.toString(), mAddress, mPort);
   }
 
   bool Communication::waitForMessage(Message &message, char expectedType) {

@@ -17,6 +17,7 @@ public:
 	void setLine();
 	void setDiamond();
 	Coordination* getShape();
+	int getLeaderIndex();
 
 private:
 	char mType;

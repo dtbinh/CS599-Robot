@@ -22,11 +22,7 @@ $(BIN)taskManager: $(LIBOBJ) $(BIN)taskManager.o
 	$(CC) $(LIBOBJ) $(BIN)taskManager.o -o $(BIN)taskManager $(LDFLAGS)
 
 # build test codes
-test: testCmd randPos networkMonitor
-
-randPos: buildenv $(BIN)randPos
-$(BIN)randPos: $(LIBOBJ) $(BIN)randPos.o
-	$(CC) $(LIBOBJ) $(BIN)randPos.o -o $(BIN)randPos $(LDFLAGS)
+test: testCmd networkMonitor
 
 testCmd: buildenv $(BIN)testCmd
 $(BIN)testCmd: $(LIBOBJ) $(BIN)testCmd.o

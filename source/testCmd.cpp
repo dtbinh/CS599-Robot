@@ -10,10 +10,8 @@ int main(int argc, char ** argv) {
   int cmd = atoi(argv[3]);               // Third arg:  commandID
 
   try {
-    RobotNetwork::Socket sendSocket;
-    RobotCommunication::Communication robotCommunication;
-    sendSocket.createSend();
-    robotCommunication.sendCommand(sendSocket, destAddress, destPort, 1, cmd);
+    RobotCommunication::Communication robotCommunication(destAddress, destPort);
+    robotCommunication.sendCommand(1, cmd);
   } catch (RobotNetwork::SocketException &e) {
     std::cerr << e.what() << std::endl;
     exit(1);

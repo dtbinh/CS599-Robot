@@ -1,6 +1,8 @@
 #include <libplayerc++/playerc++.h>
 #include <iostream>
 #include <set>
+#include <chrono>
+#include <thread>
 
 #include "args.h"
 #include "RobotBehavior.h"
@@ -8,7 +10,7 @@
 #include "SocketConnection.h"
 #include "RobotFormation.h"
 
-#define DEBUG_ENABLED
+// #define DEBUG_ENABLED
 
 int main(int argc, char **argv) {
   RobotSetting robotSetting;
@@ -19,32 +21,25 @@ int main(int argc, char **argv) {
 
   RobotList robotList;
   try {
+    // Initialize
     PlayerCc::PlayerClient robot(robotSetting.robotAddress, robotSetting.robotPort);
     PlayerCc::Position2dProxy pp(&robot, 0);
-
-    // Enable motor
     pp.SetMotorEnable (true);
-
-    // Create communication
-    RobotCommunication::Communication robotCommunication;
-    RobotNetwork::Socket listenSocket, sendSocket;
-    listenSocket.createListen(robotSetting.broadcastPort);
-    sendSocket.createSend();
+    RobotCommunication::Communication robotCommunication(robotSetting.broadcastAddress, robotSetting.broadcastPort);
 
     // Main Loop
     bool exitLoop = false;
-    bool hasTask = false;
     RobotBehavior* robotBehavior = isLeader? (RobotBehavior*)(new RobotBehaviorLeader): (RobotBehavior*)(new RobotBehaviorFollower);
     while (!exitLoop) {
       robot.Read();
       RobotPosition myPosition(pp.GetXPos(), pp.GetYPos(), pp.GetYaw());
 
       // Broadcast my position
-      robotCommunication.sendMessagePosition(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID, myPosition.getX(), myPosition.getY());
+      robotCommunication.sendMessagePosition(myID, myPosition.getX(), myPosition.getY());
 
       // Message loop
       RobotCommunication::Message message;
-      while (robotCommunication.listenMessage(listenSocket, message)) {
+      while (robotCommunication.listenMessage(message)) {
         // Process position report
         if (robotCommunication.waitForMessage(message, RobotCommunication::MSG_TYPE_POSITION) && message.getSenderID() != myID) {
           RobotPosition reporterPosition(message.getX(), message.getY(), 0);
@@ -64,21 +59,17 @@ int main(int argc, char **argv) {
           char formationType = message.getFormationType();
           double wayPointX = message.getX();
           double wayPointY = message.getY();
-          
-          // DEBUG
-          #ifdef DEBUG_ENABLED
-            std::cout << "RcvTask(" << formationType << ", " << wayPointX << ", " << wayPointY << ")" << std::endl;
-          #endif
-
           RobotFormation formation;
           if (formationType == RobotFormation::TYPE_LINE) {
             formation.setLine();
           } else if (formationType == RobotFormation::TYPE_DIAMOND) {
             formation.setDiamond();
           }
+          
+          std::cout << "RcvTask(" << formationType << ", " << wayPointX << ", " << wayPointY << ")" << std::endl;
 
           if (isLeader) {
-            ((RobotBehaviorLeader *)robotBehavior) -> setTarget(wayPointX, wayPointY);
+            ((RobotBehaviorLeader *)robotBehavior) -> assignTask(wayPointX, wayPointY);
           } else {
             // Evaluate every robot's suitability to fit in each of positions
             RobotBehaviorFollower * followerBehavior = (RobotBehaviorFollower *)robotBehavior;
@@ -86,15 +77,24 @@ int main(int argc, char **argv) {
             RobotFormation::Coordination* shapePoints = formation.getShape();
             for (int i = 0; i < RobotFormation::TEAM_SIZE; i ++) {
               // Leader is pre-specified, we dont need to go through the evaluation
-              if ((shapePoints + i)->x == 0 && (shapePoints+i)->y == 0)
+              if (i == formation.getLeaderIndex())
                 continue;
 
-              // Iterate through all robots, find the one nearest to target
-              RobotPosition targetPosition(wayPointX + (shapePoints + i)->x, wayPointY + (shapePoints + i)->y, 0);
+              // Iterate through all robots, find the one with lowest estimation
+
+              // Global algorithm
+              // RobotPosition targetPosition(wayPointX + (shapePoints + i)->x, wayPointY + (shapePoints + i)->y, 0);
+              
+              // Local algorithm
+              auto leaderIterator = robotList.find(leaderID);
+              RobotPosition targetPosition(leaderIterator->second.getX() + (shapePoints + i)->x, leaderIterator->second.getY() + (shapePoints + i)->y, 0);
+
               double minEstimation = followerBehavior->taskEstimate(myPosition, targetPosition);
               int selectedRobot = myID;
               for (RobotConstIterator it = robotList.begin(); it != robotList.end(); it ++) {
-                // Skip any robots with task assigned 
+                // Skip any robots with task assigned & Skip leader
+                if (it->first == leaderID)
+                  continue;
                 if (robotsTaskAssigned.find(it->first) != robotsTaskAssigned.end())
                   continue;
 
@@ -107,8 +107,7 @@ int main(int argc, char **argv) {
 
               // I'm the winner?
               if (selectedRobot == myID) {
-                hasTask = true;
-                followerBehavior -> setCoordination(*(shapePoints + i));
+                followerBehavior -> assignTask(*(shapePoints + i));
                 break;
               }
 
@@ -122,41 +121,40 @@ int main(int argc, char **argv) {
       } // end of message loop
 
 
-      if (hasTask) {
-        // Behaviors go here!
-        MotorData motorData;
-        if (isLeader) {
-          RobotBehaviorLeader* leaderBehavior = (RobotBehaviorLeader *)robotBehavior;
-          motorData = leaderBehavior->gotoTarget(myPosition);
-          motorData = motorData + leaderBehavior->avoidRobot(myPosition, robotList);
-          if (motorData.getMagnitude() == 0) {
-            // Arrive the way point, current task done!
-            robotCommunication.sendMessageTaskDone(sendSocket, robotSetting.broadcastAddress, robotSetting.broadcastPort, myID);
-            hasTask = 0;
-            #ifdef DEBUG_ENABLED
-              std::cout << "Task done!" << std::endl;
-            #endif
-          }
-        } else {
-          RobotBehaviorFollower* followerBehavior = (RobotBehaviorFollower *)robotBehavior;
-          auto leaderIterator = robotList.find(leaderID);
-          if (leaderIterator != robotList.end()) {
-            motorData = followerBehavior->follow(myPosition, leaderIterator->second);
-            motorData = motorData + followerBehavior->avoidRobot(myPosition, robotList);
-          } else {
-            // No leader found, this should not happen!
-            std::cout << "Error: Leader not found!" << std::endl;
-            motorData.setDirection(0);
-            motorData.setMagnitude(0);
-            motorData.setWeight(1);
-          }
+      // Behaviors go here!
+      MotorData motorData;
+      if (isLeader) {
+        RobotBehaviorLeader* leaderBehavior = (RobotBehaviorLeader *)robotBehavior;
+        motorData = leaderBehavior->gotoTarget(myPosition);
+        motorData = motorData + leaderBehavior->avoidRobot(myPosition, robotList);
+        if (motorData.getMagnitude() == 0 && leaderBehavior->hasTask()) {
+          // Arrive the way point, current task done!
+          leaderBehavior->setHasTask(false);
+          robotCommunication.sendMessageTaskDone(myID);
+          #ifdef DEBUG_ENABLED
+            std::cout << "Task done!" << std::endl;
+          #endif
         }
-
-        motorData.optimizeDirection();
-        pp.SetSpeed(motorData.getMagnitude(), motorData.getDirection());
+      } else {
+        RobotBehaviorFollower* followerBehavior = (RobotBehaviorFollower *)robotBehavior;
+        auto leaderIterator = robotList.find(leaderID);
+        if (leaderIterator != robotList.end()) {
+          motorData = followerBehavior->follow(myPosition, leaderIterator->second);
+          motorData = motorData + followerBehavior->avoidRobot(myPosition, robotList);
+        } else {
+          // No leader found, this should not happen!
+          // std::cout << "Error: Leader not found!" << std::endl;
+          motorData.setDirection(0);
+          motorData.setMagnitude(0);
+          motorData.setWeight(1);
+        }
       }
 
-      sleep(1);
+      motorData.optimizeDirection();
+      pp.SetSpeed(motorData.getMagnitude(), motorData.getDirection());
+
+      // sleep(1);
+      // std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
   }
   catch (PlayerCc::PlayerError & e) {

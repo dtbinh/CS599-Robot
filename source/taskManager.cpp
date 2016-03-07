@@ -1,7 +1,6 @@
 #include <iostream>
 #include <ctime>
 
-#include "SocketConnection.h"
 #include "RobotCommunication.h"
 #include "ArgumentsParser.h"
 
@@ -62,10 +61,7 @@ int main(int argc, char** argv) {
 	}
 
 	// Create communication sockets
-	RobotNetwork::Socket listenSocket, broadcastSocket;
-	listenSocket.createListen(GLOBAL_LISTEN_PORT);
-	broadcastSocket.createSend();
-	RobotCommunication::Communication communication;
+	RobotCommunication::Communication communication(GLOBAL_BC_ADDRESS, DEFAULT_LISTEN_PORT);
 
 	// Read task definition
 	RobotTaskList taskList;
@@ -87,14 +83,7 @@ int main(int argc, char** argv) {
 	while (!taskList.empty()) {
 		RobotTask currentTask = taskList.front();
 		// Broadcast the task
-		communication.sendMessageTask(
-			broadcastSocket,
-			GLOBAL_BC_ADDRESS,
-			GLOBAL_LISTEN_PORT,
-			0, // pseudo robot id
-			currentTask.type,
-			currentTask.x,
-			currentTask.y);
+		communication.sendMessageTask(0, currentTask.type, currentTask.x, currentTask.y);
 
 		// Record start time
 		std::cout << "Task(" << currentTask.type << ", " << currentTask.x << ", " << currentTask.y << ") start ... ";
@@ -106,7 +95,7 @@ int main(int argc, char** argv) {
 		bool exitLoop = false;
 		while (!exitLoop) {
 			RobotCommunication::Message message;
-			while (communication.listenMessage(listenSocket, message)) {
+			while (communication.listenMessage(message)) {
 				if (communication.waitForMessage(message, RobotCommunication::MSG_TYPE_TASK_DONE)) {
 					exitLoop = true;
 					break;
@@ -130,11 +119,7 @@ int main(int argc, char** argv) {
 	}
 
 	// All tasks done! Send STOP command
-	communication.sendCommand(broadcastSocket,
-		GLOBAL_BC_ADDRESS,
-		GLOBAL_LISTEN_PORT,
-		0,
-		RobotCommunication::CMD_EXIT);
+	communication.sendCommand(0, RobotCommunication::CMD_EXIT);
 
 	return 0;
 }

@@ -12,10 +12,10 @@ player player/multi.cfg
 
 ### How to run the robots?
 ```
-TBD
+sh run_robot.sh
 ```
 
-### How to stop the robots?
+### How to run the task manager?
 ```
-TBD
+sh run_taskmanager.sh
 ```
