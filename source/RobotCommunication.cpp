@@ -7,25 +7,6 @@
 namespace RobotCommunication {
 
   // --------------------
-  // Constants definition
-  // --------------------
-  // const char MESSAGE_SEPERATOR = '!';
-  // const char FIELD_SEPERATOR = '$';
-  // const int FIELD_NUMBER = 10;
-
-  // const int CMD_START = 1;
-  // const int CMD_STOP = 0;
-  // const int CMD_RESUME = 2;
-  // const int CMD_EXIT = -1;
-
-  // const char MSG_TYPE_TASK = 'T';
-  // const char MSG_TYPE_COMMAND = 'C';
-  // const char MSG_TYPE_POSITION = 'P';
-  // const char MSG_TYPE_REGISTER = 'R';
-  // const char MSG_TYPE_REQUESTREGISTER = 'B';
-  // const char MSG_TYPE_UNKNOWN = 'U';
-
-  // --------------------
   // MessageField
   // --------------------
   MessageField::MessageField() {

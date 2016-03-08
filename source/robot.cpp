@@ -1,8 +1,6 @@
 #include <libplayerc++/playerc++.h>
 #include <iostream>
 #include <set>
-#include <chrono>
-#include <thread>
 
 #include "args.h"
 #include "RobotBehavior.h"
@@ -154,7 +152,6 @@ int main(int argc, char **argv) {
       pp.SetSpeed(motorData.getMagnitude(), motorData.getDirection());
 
       // sleep(1);
-      // std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
   }
   catch (PlayerCc::PlayerError & e) {

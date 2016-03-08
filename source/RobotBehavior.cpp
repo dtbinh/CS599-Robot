@@ -55,12 +55,17 @@ MotorData MotorData::operator+ (const MotorData& data) {
 }
 
 MotorData& MotorData::optimizeDirection() {
-	if (this->mDirection > PI) {
-		this->mDirection = this->mDirection - 2 * PI; // turn left over 180 = turn right
-	} else if (this->mDirection < -PI) {
-		this->mDirection = this->mDirection + 2 * PI; // turn right over 180 = turn left
-	}
-	this->mDirection = fmod(this->mDirection, 2 * PI); // make sure direction < 360
+  double a = this->mDirection;
+  while(a < -PI) a += 2.0*PI;
+  while(a > PI) a -= 2.0*PI;
+  this->mDirection = a;
+
+	// if (this->mDirection > PI) {
+	// 	this->mDirection = this->mDirection - 2 * PI; // turn left over 180 = turn right
+	// } else if (this->mDirection < -PI) {
+	// 	this->mDirection = this->mDirection + 2 * PI; // turn right over 180 = turn left
+	// }
+	// this->mDirection = fmod(this->mDirection, 2 * PI); // make sure direction < 360
 
 	return *this;
 }
@@ -73,6 +78,7 @@ MotorData& MotorData::convertToTurn(double currentDirection) {
 /*
 * Implementation of RobotBehavior
 */
+
 RobotBehavior::RobotBehavior(): mHasTask(false) { }
 
 bool RobotBehavior::hasTask() {
@@ -96,8 +102,8 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
       continue;
 
     if (distanceToRobot < smallestDistance) {
-      double directionToRobot = myPosition.getDirectionTo(robotPosition) - fmod(myPosition.getYaw() + 2 * PI, 2 * PI);
-      if (directionToRobot <= (PI / 2) || directionToRobot >= (3 * PI / 2)) {
+      double directionToRobot = normalizeAngle(myPosition.getDirectionTo(robotPosition) - myPosition.getYaw());
+      if (directionToRobot <= (PI / 2) && directionToRobot >= -(PI / 2)) {
         nearestRobotToAvoid = robotPosition;
         smallestDistance = distanceToRobot;
       }
@@ -105,29 +111,71 @@ MotorData RobotBehavior::avoidRobot(RobotPosition myPosition, const RobotList &r
   }
 
   MotorData motorData(0, 0, 0);
+  double calcSpeed = 0;
+  double calcAngle = 0;
   if (smallestDistance < AVOID_DISTANCE) {
-    double directionToRobotAvoid = myPosition.getDirectionTo(nearestRobotToAvoid) - fmod(myPosition.getYaw() + 2 * PI, 2 * PI);
-    double extraAngle = 5 * PI / 190;
-    if (directionToRobotAvoid >= 0 && directionToRobotAvoid <= (PI / 2)) {
-      // Robot is in my left, turn right
-      // motorData.setDirection(directionToRobotAvoid - (PI / 2) - extraAngle);
-      motorData.setDirection( - (PI / 2));
-      motorData.optimizeDirection();
-      // motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
-      motorData.setMagnitude(AVOID_SPEED);
-      motorData.setWeight(AVOID_WEIGHT);
-    } else if (directionToRobotAvoid >= -(PI / 2) && directionToRobotAvoid <= 0) {
-      // Robot is in my right, turn left
-      // motorData.setDirection(directionToRobotAvoid + (PI / 2) + extraAngle);
-      motorData.setDirection(PI / 2);
-      motorData.optimizeDirection();
-      // motorData.setMagnitude(AVOID_SPEED * (smallestDistance/AVOID_DISTANCE));
-      motorData.setMagnitude(AVOID_SPEED);
-      motorData.setWeight(AVOID_WEIGHT);
+    double avoidAngle = normalizeAngle(myPosition.getDirectionTo(nearestRobotToAvoid) - myPosition.getYaw());
+    if (smallestDistance > AVOID_DISTANCE_DANGER) {
+      calcSpeed = std::min(AVOID_SPEED, smallestDistance/2);
     }
+    calcAngle = std::min(-2 * avoidAngle, MAX_ANGLE_SPEED);
+    calcAngle = std::max(-2 * avoidAngle, -MAX_ANGLE_SPEED);
+    motorData.setDirection(calcAngle);
+    motorData.setMagnitude(calcSpeed);
+    motorData.setWeight(AVOID_WEIGHT);
   }
 
 	return motorData;
+}
+
+double RobotBehavior::normalizeAngle(double a) {
+  while(a < -PI) a += 2.0*PI;
+  while(a > PI) a -= 2.0*PI;  
+  return a;
+}
+
+MotorData RobotBehavior::diffGoTo(RobotPosition goalPose, RobotPosition currPose, double maxSpeedX, double maxSpeedAngle) {
+  Velocity goal, est_pose;
+  goal.x = goalPose.getX();
+  goal.y = goalPose.getY();
+  goal.a = goalPose.getYaw();
+  est_pose.x = currPose.getX();
+  est_pose.y = currPose.getY();
+  est_pose.a = currPose.getYaw();
+
+
+  double x_error = goal.x - est_pose.x;
+  double y_error = goal.y - est_pose.y;
+  double a_error = normalizeAngle( goal.a - est_pose.a );
+ 
+  double max_speed_x = maxSpeedX;
+  double max_speed_a = maxSpeedAngle;       
+
+  Velocity calc;
+  double close_enough = 0.01; // fudge factor
+
+  // if we're at the right spot
+  if (fabs(x_error) < close_enough && fabs(y_error) < close_enough) {
+    // turn on the spot to minimize the error
+    calc.a = std::min( a_error, max_speed_a );
+    calc.a = std::max( a_error, -max_speed_a );
+  } else {
+    // turn to face the goal point
+    double goal_angle = atan2( y_error, x_error );
+    double goal_distance = hypot( y_error, x_error );
+
+    a_error = normalizeAngle(goal_angle - est_pose.a);
+    calc.a = std::min( a_error, max_speed_a );
+    calc.a = std::max( a_error, -max_speed_a );
+
+    // if we're pointing about the right direction, move
+    // forward
+    if( fabs(a_error) < PI/16 ) {
+      calc.x = std::min( goal_distance, max_speed_x );
+    }
+  }
+
+  return MotorData(calc.x, calc.a);
 }
 
 /*
@@ -146,31 +194,15 @@ void RobotBehaviorLeader::assignTask(double x, double y) {
 }
 
 MotorData RobotBehaviorLeader::gotoTarget(RobotPosition& myPosition) {
-  MotorData motorData(0, 0, TASK_WEIGHT);
-  if (!hasTask()) return motorData;
+  if (!hasTask()) return MotorData(0, 0, TASK_WEIGHT);
 
-  // Turn rate
-  RobotPosition targetPosition(mTargetX, mTargetY, 0);
-  double direction = myPosition.getDirectionTo(targetPosition) - myPosition.getYaw();
+  RobotPosition goalPose(mTargetX, mTargetY, 0);
+  MotorData motorData = diffGoTo(goalPose, myPosition, MAX_MOTOR_SPEED * 0.7, 1);
+  motorData.setWeight(TASK_WEIGHT);
 
-  // Speed
-  double distance = myPosition.getDistanceTo(targetPosition);
-  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): (MAX_MOTOR_SPEED);
-  magnitude *= 0.7;
-  if (distance < FINISH_DISTANCE) {
-    magnitude = 0;
-    direction = 0;    
+  if (myPosition.getDistanceTo(goalPose) < FINISH_DISTANCE) {
+    motorData.setMagnitude(0);
   }
-
-  motorData.setMagnitude(magnitude);
-  motorData.setDirection(direction);
-  motorData.optimizeDirection();
-
-  #ifdef DEBUG_ENABLED
-    std::cout << "Distance(" << distance << ") ";
-    std::cout << "MotorData(" << motorData.getMagnitude() << ", " << motorData.getDirection() * 180 / PI << ")";
-    std::cout << std::endl;
-  #endif
 
   return motorData;
 }
@@ -194,50 +226,14 @@ double RobotBehaviorFollower::taskEstimate(RobotPosition myPosition, RobotPositi
 }
 
 MotorData RobotBehaviorFollower::follow(RobotPosition& myPosition, RobotPosition& leaderPosition) {
-  MotorData motorData(0, 0, TASK_WEIGHT);
-  if (!hasTask()) return motorData;
+  if (!hasTask()) return MotorData(0, 0, TASK_WEIGHT);
 
   RobotPosition nextPosition(leaderPosition.getX() + mCoordination.x, leaderPosition.getY() + mCoordination.y, 0);
-  bool isAheadOfTarget = (nextPosition.getX() < myPosition.getX());
-
-  // Turn rate
-  double direction = myPosition.getDirectionTo(nextPosition) - myPosition.getYaw();
-  if (isAheadOfTarget) {
-    direction = 0;
+  if (nextPosition.getX() <= myPosition.getX()) {
+    nextPosition.setX(myPosition.getX());
   }
-
-  // Speed
-  double distance = myPosition.getDistanceTo(nextPosition);
-  double magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (distance / NEAR_DISTANCE)): MAX_MOTOR_SPEED;
-  // double magnitude = MAX_MOTOR_SPEED;
-  if (isAheadOfTarget) {
-    magnitude = (distance < NEAR_DISTANCE)? (MAX_MOTOR_SPEED * (1 - distance / NEAR_DISTANCE)): 0;
-  }
-  // if (distance < FINISH_DISTANCE) {
-  //   direction = 0;
-  //   magnitude = 0;
-  // }
-
-  motorData.setMagnitude(magnitude);
-  motorData.setDirection(direction);
-  motorData.optimizeDirection();
-
-  // smooth the direction
-  direction = motorData.getDirection();
-  double max_turn_rate = MAX_TURN_RATE * PI / 180;
-  if (std::fabs(direction) > max_turn_rate) {
-    direction = std::fabs(direction) / direction * max_turn_rate;
-    motorData.setDirection(direction); 
-  } 
-  
-  #ifdef DEBUG_ENABLED
-    // std::cout << "LeaderPose(" << leaderPosition.getX() << ", " << leaderPosition.getY() << ") ";
-    // std::cout << "MyPose(" << myPosition.getX() << ", " << myPosition.getY() << ")";
-    std::cout << std::endl;
-    std::cout << "Distance(" << distance << ") ";
-    std::cout << "MotorData(" << motorData.getMagnitude() << ", " << motorData.getDirection() * 180 / PI << ")";
-    std::cout << std::endl;
-  #endif
+  MotorData motorData = diffGoTo(nextPosition, myPosition, MAX_MOTOR_SPEED, 1);
+  motorData.setWeight(TASK_WEIGHT);
 
   return motorData;
 }
@@ -284,26 +280,29 @@ RobotPosition& RobotPosition::operator= (const RobotPosition& position) {
 double RobotPosition::getDistanceTo(const RobotPosition robotPosition) const {
 	double x = this->getX() - robotPosition.getX();
 	double y = this->getY() - robotPosition.getY();
-	return sqrt(x * x + y * y);
+	return hypot(x, y);
 }
 
 double RobotPosition::getDirectionTo(const RobotPosition robotPosition) const {
     double targetX = robotPosition.getX() - this->getX();
     double targetY = robotPosition.getY() - this->getY();
+    if (targetX == 0 && targetY == 0) return 0;
 
-    if (targetX == 0 && targetY > 0) {
-      return PI / 2;
-    } else if (targetX == 0 && targetY < 0) {
-      return 3 * PI / 2;
-    } else if (targetX == 0 && targetY == 0) {
-      return 0;
-    } else {
-      double direction = atan(targetY / targetX);
-      if (targetX < 0) // transform the coordination from C to Player
-        direction = PI + direction;
-      else
-        direction = fmod((2 * PI + direction), (2 * PI));
+    return atan2(targetY, targetX);
 
-      return direction;
-    }
+    // if (targetX == 0 && targetY > 0) {
+    //   return PI / 2;
+    // } else if (targetX == 0 && targetY < 0) {
+    //   return 3 * PI / 2;
+    // } else if (targetX == 0 && targetY == 0) {
+    //   return 0;
+    // } else {
+    //   double direction = atan(targetY / targetX);
+    //   if (targetX < 0) // transform the coordination from C to Player
+    //     direction = PI + direction;
+    //   else
+    //     direction = fmod((2 * PI + direction), (2 * PI));
+
+      // return direction;
+    // }
 }

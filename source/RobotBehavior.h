@@ -62,20 +62,30 @@ private:
 	int mWeight;
 };
 
+typedef struct structVelocity {
+	double a;
+	double x;
+	double y;
+} Velocity;
+
 class RobotBehavior {
 public:
 	RobotBehavior();
 	MotorData avoidRobot(RobotPosition myPosition, const RobotList &robotList);
 	void setHasTask(bool hasTask);
 	bool hasTask();
+	MotorData diffGoTo(RobotPosition goalPose, RobotPosition currPose, double maxSpeedX, double maxSpeedAngle);
 
 protected:
-	static constexpr double MAX_MOTOR_SPEED = 0.5;
-	static constexpr double MAX_TURN_RATE = 20; // in degree
-	static constexpr double AVOID_SPEED = 0.1;
-	static constexpr double AVOID_WEIGHT = 2000;
-	static constexpr double AVOID_DISTANCE = 0.5;
+	const double MAX_MOTOR_SPEED = 0.5;
+	const double MAX_ANGLE_SPEED = 1; // in radian
+	const double AVOID_SPEED = 0.1;
+	const double AVOID_WEIGHT = 2000;
+	const double AVOID_DISTANCE = 0.7;
+	const double AVOID_DISTANCE_DANGER = 0.3;
+
 	bool mHasTask;
+	double normalizeAngle(double a);
 };
 
 class RobotBehaviorLeader: public RobotBehavior {
@@ -84,12 +94,12 @@ public:
 	void assignTask(double x, double y);
 	MotorData gotoTarget(RobotPosition& myPosition);
 
-private:
+protected:
 	static constexpr double TASK_WEIGHT = 20;
-	static constexpr double NEAR_DISTANCE = 0.5;
 	static constexpr double FINISH_DISTANCE = 0.02;
 	double mTargetX;
 	double mTargetY;
+
 };
 
 class RobotBehaviorFollower: public RobotBehavior {
@@ -101,8 +111,7 @@ public:
 
 private:
 	static constexpr double TASK_WEIGHT = 20;
-	static constexpr double NEAR_DISTANCE = 0.2;
-	static constexpr double FINISH_DISTANCE = 0.01;
+	static constexpr double FINISH_DISTANCE = 0.02;
 	RobotFormation::Coordination mCoordination;
 };
 
