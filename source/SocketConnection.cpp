@@ -8,7 +8,7 @@
 #include <string.h>            // for strerror()
 #include <fcntl.h>            // For fcntl()
 
-namespace RobotNetwork {
+namespace Robot {
 
   // ----------------------------------------
   // Implementation of SocketException

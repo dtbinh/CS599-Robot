@@ -6,18 +6,18 @@ AR = ar rvs
 SRC = source/
 BIN = build/
 
-LIBS = RobotCommunication SocketConnection RobotBehavior ArgumentsParser RobotFormation
+LIBS = RobotCommunication SocketConnection RobotBehavior ArgumentsParser RobotFormation RobotBase
 LIBOBJ = $(addsuffix .o, $(addprefix $(BIN), $(LIBS)))
 
 all: robot taskManager test
 
 # Robot
-robot: buildenv $(BIN)robot	
+robot: buildenv $(BIN)robot
 $(BIN)robot: $(LIBOBJ) $(BIN)args.o $(BIN)robot.o
 	$(CC) $(LIBOBJ) $(BIN)args.o $(BIN)robot.o -o $(BIN)robot $(LDFLAGS)
 
 # TaskManager
-taskManager: buildenv $(BIN)taskManager	
+taskManager: buildenv $(BIN)taskManager
 $(BIN)taskManager: $(LIBOBJ) $(BIN)taskManager.o
 	$(CC) $(LIBOBJ) $(BIN)taskManager.o -o $(BIN)taskManager $(LDFLAGS)
 

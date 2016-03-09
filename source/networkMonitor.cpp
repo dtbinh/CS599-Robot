@@ -10,12 +10,12 @@
 #define DEFAULT_LISTEN_PORT 9090
 
 int main(int argc, char** argv) {
-	RobotNetwork::Socket listenSocket;
+	Robot::Socket listenSocket;
 	listenSocket.createListen(DEFAULT_LISTEN_PORT);
 
-  char recvBuffer[RobotNetwork::MAX_SOCKET_BUF];
+  char recvBuffer[Robot::MAX_SOCKET_BUF];
 	while (true) {
-		while (listenSocket.listen(recvBuffer, RobotNetwork::MAX_SOCKET_BUF) > 0) {
+		while (listenSocket.listen(recvBuffer, Robot::MAX_SOCKET_BUF) > 0) {
 			std::cout << recvBuffer << std::endl;
 		}
 		sleep(1);

@@ -1,28 +1,26 @@
 #ifndef __ROBOT_FORMATION_H__
 #define __ROBOT_FORMATION_H__
 
-class RobotFormation {
-public:
-	static const int TEAM_SIZE = 4;
-	static const char TYPE_LINE = 'l';
-	static const char TYPE_DIAMOND = 'd';
-	static constexpr double DISTANCE = 1;
-	typedef struct Coordination {
-		Coordination();
-		Coordination(double, double);
-		double x;
-		double y;
-	} Coordination;
-	RobotFormation();
-	void setLine();
-	void setDiamond();
-	Coordination* getShape();
-	int getLeaderIndex();
+#include "RobotBase.h"
 
-private:
-	char mType;
-	RobotFormation::Coordination mShape[TEAM_SIZE];
-	int mLeaderIndex;
-};
+namespace Robot {
+	class Formation {
+	public:
+		static const int TEAM_SIZE = 4;
+		static const char TYPE_LINE = 'l';
+		static const char TYPE_DIAMOND = 'd';
+		static constexpr double DISTANCE = 1;
+		Formation();
+		void setLine();
+		void setDiamond();
+		Pose* getShape();
+		int getLeaderIndex();
+
+	private:
+		char mType;
+		Pose mShape[TEAM_SIZE];
+		int mLeaderIndex;
+	};
+}
 
 #endif

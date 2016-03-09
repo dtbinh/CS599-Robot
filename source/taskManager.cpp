@@ -61,11 +61,12 @@ int main(int argc, char** argv) {
 	}
 
 	// Create communication sockets
-	RobotCommunication::Communication communication(GLOBAL_BC_ADDRESS, DEFAULT_LISTEN_PORT);
+	Robot::Communication communication(GLOBAL_BC_ADDRESS, DEFAULT_LISTEN_PORT);
 
 	// Read task definition
 	RobotTaskList taskList;
-	std::cout << "Input task list:<formation> <x> <y> : " << std::endl;
+	std::cout << "Input task list, format: <formation> <x> <y>" << std::endl;
+	std::cout << "<formation>: 'l' for line, 'd' for diamond" << std::endl;
 	std::cout << "When finish, type in 's'" << std::endl;
 	while (true) {
 		char taskType;
@@ -94,9 +95,9 @@ int main(int argc, char** argv) {
 		// Wait for task completion message
 		bool exitLoop = false;
 		while (!exitLoop) {
-			RobotCommunication::Message message;
+			Robot::Message message;
 			while (communication.listenMessage(message)) {
-				if (communication.waitForMessage(message, RobotCommunication::MSG_TYPE_TASK_DONE)) {
+				if (communication.waitForMessage(message, Robot::MSG_TYPE_TASK_DONE)) {
 					exitLoop = true;
 					break;
 				}
@@ -119,7 +120,7 @@ int main(int argc, char** argv) {
 	}
 
 	// All tasks done! Send STOP command
-	communication.sendCommand(0, RobotCommunication::CMD_EXIT);
+	communication.sendCommand(0, Robot::CMD_EXIT);
 
 	return 0;
 }

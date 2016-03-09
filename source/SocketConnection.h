@@ -5,7 +5,7 @@
 #include <exception>
 #include <netinet/in.h>      // For sockaddr_in
 
-namespace RobotNetwork {
+namespace Robot {
 
   const int MAX_SOCKET_BUF = 1024;
 

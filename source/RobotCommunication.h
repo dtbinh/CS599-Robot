@@ -5,7 +5,7 @@
 #include <list>
 #include "SocketConnection.h"
 
-namespace RobotCommunication {
+namespace Robot {
 
   const char MESSAGE_SEPERATOR = '!';
   const char FIELD_SEPERATOR = '$';
@@ -75,8 +75,8 @@ namespace RobotCommunication {
   private:
     std::string mAddress;
     int mPort;
-    RobotNetwork::Socket mSocketListen;
-    RobotNetwork::Socket mSocketSend;
+    Socket mSocketListen;
+    Socket mSocketSend;
   };
 }
 

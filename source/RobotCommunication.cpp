@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <iostream>
 
-namespace RobotCommunication {
+namespace Robot {
 
   // --------------------
   // MessageField
@@ -175,9 +175,9 @@ namespace RobotCommunication {
 
   bool Communication::listenMessage(Message& message)
   {
-    char recvBuffer[RobotNetwork::MAX_SOCKET_BUF];
+    char recvBuffer[MAX_SOCKET_BUF];
 
-    int nBytes = mSocketListen.listen(recvBuffer, RobotNetwork::MAX_SOCKET_BUF);
+    int nBytes = mSocketListen.listen(recvBuffer, MAX_SOCKET_BUF);
     if (nBytes <= 0) {
       return false;
     }

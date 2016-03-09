@@ -3,116 +3,60 @@
 
 #include <map>
 #include "RobotFormation.h"
+#include "RobotBase.h"
 
-extern const double PI;
+namespace Robot {
 
-class RobotPosition {
-public:
-	// Constructor
-	RobotPosition();
-	RobotPosition(double x, double y, double yaw);
-	RobotPosition(const RobotPosition& robotPosition);
-	// Setter/Getter
-	double getX() const;
-	double getY() const;
-	double getYaw() const;
-	RobotPosition& setX(double x);
-	RobotPosition& setY(double y);
-	RobotPosition& setYaw(double yaw);
-	// Operator over-riding
-	RobotPosition& operator= (const RobotPosition& position);
-	// Other methods
-	double getDistanceTo(const RobotPosition robotPosition) const;
-	double getDirectionTo(const RobotPosition robotPosition) const;
+  constexpr double MAX_MOTOR_SPEED = 0.5;
+  constexpr double MAX_ANGLE_SPEED = 1;
+  constexpr double AVOID_SPEED = 0.1;
+  const int AVOID_WEIGHT = 2000;
+  constexpr double AVOID_DISTANCE = 0.5;
+  constexpr double AVOID_DISTANCE_DANGER = 0.3;
 
-private:
-	double mX;
-	double mY;
-	double mYaw;
-};
+  const int LEADER_TASK_WEIGHT = 20;
+  constexpr double LEADER_FINISH_DISTANCE = 0.02;
 
-typedef std::map<int, RobotPosition> RobotList;
-typedef std::map<int, RobotPosition>::iterator RobotIterator;
-typedef std::map<int, RobotPosition>::const_iterator RobotConstIterator;
+  const int FOLLOWER_TASK_WEIGHT = 20;
+  constexpr double FOLLOWER_FINISH_DISTANCE = 0.02;
 
-class MotorData {
-public:
-	// Constructor
-	MotorData();
-	MotorData(const MotorData& data);
-	MotorData(const double magnitude, const double direction);
-	MotorData(const double magnitude, const double direction, const int weight);
-	// Setter/Getter
-	double getMagnitude() const;
-	double getDirection() const;
-	int getWeight() const;
-	MotorData& setDirection(double direction);
-	MotorData& setMagnitude(double magnitude);
-	MotorData& setWeight(int weight);
-	// Operator overloading
-	MotorData& operator= (const MotorData& data);
-	MotorData operator+ (const MotorData& data);
-	// Other methods
-	MotorData& optimizeDirection();
-	MotorData& convertToTurn(double currentDirection);
+	class Behavior {
+	public:
+		Behavior();
+		bool avoidRobot(Pose myPose, const PoseList &robotList, Velocity &vel);
+		void setHasTask(bool hasTask);
+		bool hasTask();
+		Velocity diffGoTo(Pose goalPose, Pose currPose, double maxSpeedX, double maxSpeedAngle);
 
-private:
-	double mMagnitude;
-	double mDirection;
-	int mWeight;
-};
+	protected:
+		bool mHasTask;
+		double normalizeAngle(double a);
+	};
 
-typedef struct structVelocity {
-	double a;
-	double x;
-	double y;
-} Velocity;
+	class BehaviorLeader: public Behavior {
+	public:
+		BehaviorLeader();
+		void assignTask(Pose targetPose);
+		Velocity gotoTarget(Pose& myPosition);
 
-class RobotBehavior {
-public:
-	RobotBehavior();
-	MotorData avoidRobot(RobotPosition myPosition, const RobotList &robotList);
-	void setHasTask(bool hasTask);
-	bool hasTask();
-	MotorData diffGoTo(RobotPosition goalPose, RobotPosition currPose, double maxSpeedX, double maxSpeedAngle);
+	protected:
+		Pose mTargetPose;
 
-protected:
-	const double MAX_MOTOR_SPEED = 0.5;
-	const double MAX_ANGLE_SPEED = 1; // in radian
-	const double AVOID_SPEED = 0.1;
-	const double AVOID_WEIGHT = 2000;
-	const double AVOID_DISTANCE = 0.7;
-	const double AVOID_DISTANCE_DANGER = 0.3;
+	};
 
-	bool mHasTask;
-	double normalizeAngle(double a);
-};
+	class BehaviorFollower: public Behavior {
+	public:
+		BehaviorFollower(int myID, int leaderID);
+		void assignTask(Pose pos);
+		double taskEstimate(Pose myPose, Pose targetPose);
+		Velocity follow(Pose& myPose, Pose& leaderPose);
+		Pose bid(Formation fmt, Pose refPose, const PoseList robotList, Pose myPose);
 
-class RobotBehaviorLeader: public RobotBehavior {
-public:
-	RobotBehaviorLeader();
-	void assignTask(double x, double y);
-	MotorData gotoTarget(RobotPosition& myPosition);
+	private:
+		Pose mCoordination;
+		int mMyID;
+		int mLeaderID;
+	};
 
-protected:
-	static constexpr double TASK_WEIGHT = 20;
-	static constexpr double FINISH_DISTANCE = 0.02;
-	double mTargetX;
-	double mTargetY;
-
-};
-
-class RobotBehaviorFollower: public RobotBehavior {
-public:
-	RobotBehaviorFollower();
-	void assignTask(RobotFormation::Coordination coordination);
-	double taskEstimate(RobotPosition myPosition, RobotPosition targetPosition);
-	MotorData follow(RobotPosition& myPosition, RobotPosition& leaderPosition);
-
-private:
-	static constexpr double TASK_WEIGHT = 20;
-	static constexpr double FINISH_DISTANCE = 0.02;
-	RobotFormation::Coordination mCoordination;
-};
-
+}
 #endif

@@ -10,9 +10,9 @@ int main(int argc, char ** argv) {
   int cmd = atoi(argv[3]);               // Third arg:  commandID
 
   try {
-    RobotCommunication::Communication robotCommunication(destAddress, destPort);
+    Robot::Communication robotCommunication(destAddress, destPort);
     robotCommunication.sendCommand(1, cmd);
-  } catch (RobotNetwork::SocketException &e) {
+  } catch (Robot::SocketException &e) {
     std::cerr << e.what() << std::endl;
     exit(1);
   }
