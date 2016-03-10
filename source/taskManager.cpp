@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ctime>
+#include <unistd.h>
 
 #include "RobotCommunication.h"
 #include "ArgumentsParser.h"

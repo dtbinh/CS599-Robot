@@ -97,11 +97,11 @@ int parse_args(int argc, char** argv, RobotSetting &setting)
     }
   }
 
-  if (setting.senseRange < setting.distance) {
-    std::cerr << "Error: sensory range is smaller than distance!" << std::endl;
-    print_usage(argc, argv);
-    exit (-1);
-  }
+  // if (setting.senseRange < setting.distance) {
+  //   std::cerr << "Error: sensory range is smaller than distance!" << std::endl;
+  //   print_usage(argc, argv);
+  //   exit (-1);
+  // }
 
   // Inches to meters
   // setting.senseRange *= INCHE_METER_FACTOR;
